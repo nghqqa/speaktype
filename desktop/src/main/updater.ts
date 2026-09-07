@@ -1,5 +1,5 @@
 import { spawn } from "node:child_process";
-import { readdirSync, rmSync } from "node:fs";
+import { existsSync, readdirSync, rmSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { app, shell } from "electron";
 import log from "electron-log/main.js";
@@ -19,6 +19,8 @@ import type { UpdateInfo, UpdateState } from "../shared/types";
 const RELEASE_API = "https://api.github.com/repos/wookat/speaktype/releases/latest";
 /** 手动检查也不必每次打 API：同一会话内缓存一会儿，防连点/反复开关页撞匿名限额 */
 const CHECK_CACHE_MS = 10 * 60_000;
+/** 半开连接下 fetch 会永久挂起，与下载侧 stallGuard 的标准对齐给个超时 */
+const CHECK_TIMEOUT_MS = 15_000;
 
 /** 版本号比大小："v0.18.0" vs "0.17.2"，逐段数字比较（与关于页同名实现一致，主进程侧独立一份） */
 export function versionNewer(tag: string, current: string): boolean {
@@ -49,11 +51,13 @@ function updateDir(): string {
   return join(app.getPath("userData"), "updates");
 }
 
-/** 新目标确定后顺手清掉旧版本安装包，updates 目录不留多个 ~100MB 文件 */
+/** 新目标确定后顺手清掉旧版本安装包与残片（.exe / .exe.part / .exe.part.json），updates 目录不留多个 ~100MB 文件 */
 function pruneOldInstallers(keep: string): void {
+  // 目录只归更新器使用，不在保留名单（当前目标的三个落盘名）里的一律清掉
+  const keepSet = new Set([keep, `${keep}.part`, `${keep}.part.json`]);
   try {
     for (const f of readdirSync(updateDir())) {
-      if (f !== keep && f.endsWith(".exe")) rmSync(join(updateDir(), f), { force: true });
+      if (!keepSet.has(f)) rmSync(join(updateDir(), f), { force: true });
     }
   } catch {
     // 目录不存在等：无事可清
@@ -63,9 +67,18 @@ function pruneOldInstallers(keep: string): void {
 /** 检查更新：仅 Windows；返回 null = 无新版/不支持。portable 版没有安装器语义，由 UI 换成「打开所在文件夹」 */
 export async function checkUpdate(): Promise<UpdateInfo | null> {
   if (process.platform !== "win32") return null;
-  if (cached && Date.now() - cached.at < CHECK_CACHE_MS) return cached.info;
+  if (cached && Date.now() - cached.at < CHECK_CACHE_MS) {
+    if (cached.info) {
+      currentInfo = cached.info;
+      pruneOldInstallers(cached.info.fileName);
+    }
+    return cached.info;
+  }
   try {
-    const res = await fetch(RELEASE_API, { headers: { accept: "application/vnd.github+json" } });
+    const res = await fetch(RELEASE_API, {
+      headers: { accept: "application/vnd.github+json" },
+      signal: AbortSignal.timeout(CHECK_TIMEOUT_MS),
+    });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const release = (await res.json()) as { tag_name?: string; assets?: ReleaseAsset[] };
     const tag = release.tag_name ?? "";
@@ -109,19 +122,38 @@ let currentInfo: UpdateInfo | null = null;
 let downloadedPath: string | null = null;
 let abort: AbortController | null = null;
 
-/** 恢复用：页面打开时读当前状态；不在下载期但有可续传残片时按残片进度显示（partial 标记区分于活跃下载） */
+/** 已下完整包且大小与远端一致：restart 后据此直接显示「安装并重启」，不再重下 ~100MB */
+function installerReady(info: UpdateInfo): string | null {
+  const dest = join(updateDir(), info.fileName);
+  return existsSync(dest) && statSync(dest).size === info.size ? dest : null;
+}
+
+/** 恢复用：页面打开时读当前状态；已下完的显示 ready，否则有可续传残片时按残片进度显示（partial 标记区分于活跃下载） */
 export function updateState(): UpdateState | null {
-  if (state || !currentInfo) return state;
-  const partial = partialProgress(join(updateDir(), currentInfo.fileName));
+  if (state) return state;
+  const info = currentInfo ?? cached?.info;
+  if (!info) return null;
+  if (installerReady(info)) return { phase: "ready", progress: 100 };
+  const partial = partialProgress(join(updateDir(), info.fileName));
   if (!partial) return null;
   return { phase: "downloading", progress: Math.floor((partial.got / partial.total) * 100), partial: true };
 }
 
-/** 下载安装包：单源（GitHub 直链），断点续传/停滞重试语义与模型下载一致 */
-export async function downloadUpdate(info: UpdateInfo): Promise<void> {
-  if (abort) return;
-  currentInfo = info;
+/**
+ * 下载安装包：单源 GitHub 直链——发布资产没有官方 sha256，加第三方代理镜像等于让不明中间人
+ * 供二进制，不干；断点续传/停滞重试语义与模型下载一致。目标只取主进程 checkUpdate 的结果，
+ * 不吃渲染层传参（fileName 会直接进 join 与 URL，不可信）
+ */
+export async function downloadUpdate(): Promise<void> {
+  const info = currentInfo ?? cached?.info;
+  if (!info || abort) return;
   const dest = join(updateDir(), info.fileName);
+  // 上次已下完未安装：直接就绪
+  if (installerReady(info)) {
+    downloadedPath = dest;
+    setState({ phase: "ready", progress: 100 });
+    return;
+  }
   abort = new AbortController();
   // 用磁盘残片进度做起点：续传场景下进度条从上次位置继续，不在建连间隙跳回 0
   const seed = partialProgress(dest);
@@ -171,7 +203,14 @@ export function installUpdate(): void {
   // 先拉起安装器再退出：spawn detached 让它脱离本进程生命周期，app.quit() 异步收尾不抢跑。
   // --force-run 必须带：NSIS assisted 安装器静默（/S）模式默认装完不自启，只有该标志才拉起新版本
   //（模板 installSection.nsh：${if} ${isForceRun} ${andIf} ${Silent} → doStartApp，本机已实测）
-  const child = spawn(downloadedPath, ["/S", "--force-run"], { detached: true, stdio: "ignore" });
-  child.unref();
-  app.quit();
+  try {
+    const child = spawn(downloadedPath, ["/S", "--force-run"], { detached: true, stdio: "ignore" });
+    child.unref();
+    app.quit();
+  } catch (error) {
+    // 安装包被杀软隔离/手删等：回到错误态给重试入口，而不是让拒绝悬空、按钮无响应
+    const message = error instanceof Error ? error.message : String(error);
+    setState({ phase: "error", progress: 100, error: message });
+    log.warn("update install failed", error);
+  }
 }

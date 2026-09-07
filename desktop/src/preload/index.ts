@@ -77,10 +77,10 @@ const api = {
   openExternal: (url: string): Promise<void> => ipcRenderer.invoke("open:external", url),
   openLogs: (): Promise<void> => ipcRenderer.invoke("log:open"),
   latestVersion: (): Promise<string> => ipcRenderer.invoke("app:latestVersion"),
-  /** 应用内更新：仅 Windows 返回新版信息；下载/安装状态经 onUpdateState 推送 */
+  /** 应用内更新：仅 Windows 返回新版信息；下载/安装状态经 onUpdateState 推送。目标由主进程 check 决定 */
   updateCheck: (): Promise<UpdateInfo | null> => ipcRenderer.invoke("update:check"),
   updateState: (): Promise<UpdateState | null> => ipcRenderer.invoke("update:state"),
-  updateDownload: (info: UpdateInfo): Promise<void> => ipcRenderer.invoke("update:download", info),
+  updateDownload: (): Promise<void> => ipcRenderer.invoke("update:download"),
   updateCancel: (): Promise<void> => ipcRenderer.invoke("update:cancel"),
   updateInstall: (): Promise<void> => ipcRenderer.invoke("update:install"),
   onUpdateState: (fn: (s: UpdateState) => void) => {
