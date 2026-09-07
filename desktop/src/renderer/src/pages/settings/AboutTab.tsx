@@ -29,7 +29,8 @@ function updatePhaseText(st: UpdateState, t: Translator): string | null {
 function UpdateCard(props: { t: Translator; info: UpdateInfo; state: UpdateState | null }) {
   const { t, info, state: st } = props;
   const sizeMb = Math.round(info.size / 1024 / 1024);
-  // 取消后主进程状态回 null：本地保留一份已见过的最新进度，避免进度条跳回 0
+  // st 经 onUpdateState 推送、可能在组件挂载后才异步到达：本地留一份已见过的最新状态，
+  // 避免推送间隙（如取消后主进程置 partial 前的一瞬）进度条闪回初始形态
   const [seen, setSeen] = useState<UpdateState | null>(st);
   useEffect(() => setSeen(st), [st]);
   const phaseText = seen ? updatePhaseText(seen, t) : null;
@@ -41,7 +42,7 @@ function UpdateCard(props: { t: Translator; info: UpdateInfo; state: UpdateState
         {(!seen || seen.partial) && (
           <button
             className="font-medium underline"
-            onClick={() => void api.updateDownload(info)}
+            onClick={() => void api.updateDownload()}
           >
             {seen?.partial
               ? t("settings.about.updateResume", { progress: String(seen.progress) })
@@ -59,7 +60,7 @@ function UpdateCard(props: { t: Translator; info: UpdateInfo; state: UpdateState
           </button>
         )}
         {seen?.phase === "error" && (
-          <button className="font-medium underline" onClick={() => void api.updateDownload(info)}>
+          <button className="font-medium underline" onClick={() => void api.updateDownload()}>
             {t("settings.about.updateRetry")}
           </button>
         )}
@@ -97,8 +98,14 @@ function AboutTab(props: { t: Translator; version: string; commit: string }) {
   const [upState, setUpState] = useState<UpdateState | null>(null);
   const [latest, setLatest] = useState("");
   useEffect(() => {
-    void api.updateCheck().then((i) => setInfo(i));
-    void api.updateState().then((s) => setUpState(s));
+    // 先 check 后补拉 state：check 才会在主进程确定当前目标（并清掉旧版本残片），
+    // 重启后的「继续下载（已 x%）」/「已就绪」依赖这个顺序才能恢复出来
+    void api.updateCheck().then((i) => {
+      setInfo(i);
+      if (i) void api.updateState().then(setUpState);
+    });
+    // 本会话已有进行中状态时（正在下载）则立即恢复，不必等 check
+    void api.updateState().then(setUpState);
     const off = api.onUpdateState(setUpState);
     return off;
   }, []);
