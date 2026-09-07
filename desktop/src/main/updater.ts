@@ -168,8 +168,10 @@ export function installUpdate(): void {
     return;
   }
   log.info(`update install: quitting and running ${downloadedPath}`);
-  // 先拉起安装器再退出：spawn detached 让它脱离本进程生命周期，app.quit() 异步收尾不抢跑
-  const child = spawn(downloadedPath, ["/S"], { detached: true, stdio: "ignore" });
+  // 先拉起安装器再退出：spawn detached 让它脱离本进程生命周期，app.quit() 异步收尾不抢跑。
+  // --force-run 必须带：NSIS assisted 安装器静默（/S）模式默认装完不自启，只有该标志才拉起新版本
+  //（模板 installSection.nsh：${if} ${isForceRun} ${andIf} ${Silent} → doStartApp，本机已实测）
+  const child = spawn(downloadedPath, ["/S", "--force-run"], { detached: true, stdio: "ignore" });
   child.unref();
   app.quit();
 }
