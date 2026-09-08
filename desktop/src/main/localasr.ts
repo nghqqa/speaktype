@@ -7,7 +7,7 @@ import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { Worker } from "node:worker_threads";
 import log from "electron-log/main.js";
-import { LOCAL_MODELS, PARAKEET, PARAKEET_FP32, SENSEVOICE, isParakeetModel, isSherpaModel } from "../shared/localModels";
+import { FIRERED_CTC, LOCAL_MODELS, PARAKEET, PARAKEET_FP32, SENSEVOICE, isFireRedModel, isParakeetModel, isSherpaModel } from "../shared/localModels";
 import type { LocalModelStatus } from "../shared/types";
 import { DownloadCancelled, downloadFiles, hfSources, partialProgress } from "./download";
 import { t } from "./i18n";
@@ -16,12 +16,16 @@ import { t } from "./i18n";
  * 内置离线识别，两套引擎：
  * - whisper.cpp：whisper-server 子进程 + ggml 模型，多语种通用。
  * - SenseVoice（sherpa-onnx）：进程内推理，中文准确率和速度明显好于同体积 whisper。
+ * - FireRedASR v2 CTC（sherpa-onnx）：中英 + 方言精度优先档，解码慢约 8 倍，无实时字幕。
  */
 
-export { LOCAL_MODELS, PARAKEET, PARAKEET_FP32, SENSEVOICE, isParakeetModel, isSherpaModel, whisperLanguage } from "../shared/localModels";
+export { LOCAL_MODELS, PARAKEET, PARAKEET_FP32, SENSEVOICE, isFireRedModel, isParakeetModel, isSherpaModel, whisperLanguage } from "../shared/localModels";
 
 const SENSEVOICE_BASE =
   "csukuangfj/sherpa-onnx-sense-voice-zh-en-ja-ko-yue-2024-07-17/resolve/main";
+
+const FIRERED_CTC_BASE =
+  "csukuangfj2/sherpa-onnx-fire-red-asr2-ctc-zh_en-int8-2026-02-25/resolve/main";
 
 const PARAKEET_BASE =
   "csukuangfj/sherpa-onnx-nemo-parakeet-tdt-0.6b-v3-int8/resolve/main";
@@ -52,6 +56,13 @@ function modelFiles(model: string): Array<[string, string, number?]> {
     return [
       [`${SENSEVOICE_BASE}/model.int8.onnx`, join(dir, "model.int8.onnx"), 239_233_841],
       [`${SENSEVOICE_BASE}/tokens.txt`, join(dir, "tokens.txt"), 315_894],
+    ];
+  }
+  if (model === FIRERED_CTC) {
+    const dir = join(modelsDir(), FIRERED_CTC);
+    return [
+      [`${FIRERED_CTC_BASE}/model.int8.onnx`, join(dir, "model.int8.onnx"), 775_861_420],
+      [`${FIRERED_CTC_BASE}/tokens.txt`, join(dir, "tokens.txt"), 79_172],
     ];
   }
   if (model === PARAKEET) {
@@ -258,7 +269,8 @@ export function deleteLocalModel(model: string): LocalModelStatus {
 /**
  * sherpa-onnx 离线推理跑在 worker 线程里：解码是同步的，长句要几百毫秒到
  * 一秒多，留在主进程会卡住整个 UI（实时字幕反复重解时尤其明显）。worker 里模型实例
- * 常驻，语言变化时重建。SenseVoice 走 senseVoice 配置，Parakeet 走 NeMo transducer。
+ * 常驻，语言变化时重建。SenseVoice 走 senseVoice 配置，Parakeet 走 NeMo transducer，
+ * FireRedASR 走 fireRedAsrCtc（zh_en 双语编进模型，不吃 language）。
  */
 const workerSource = `
 const { parentPort, workerData } = require("worker_threads");
@@ -277,8 +289,8 @@ let rec = null;
 let lang = null;
 parentPort.on("message", (msg) => {
   try {
-    // Parakeet 自动检测语种，识别语言变化无需重建；只有 SenseVoice 把语言编进了模型配置
-    if (!rec || (workerData.engine !== "transducer" && lang !== msg.language)) {
+    // Parakeet/FireRedASR 自动语种（zh_en 编进模型），语言变化无需重建；只有 SenseVoice 把语言编进了模型配置
+    if (!rec || (workerData.engine === "sensevoice" && lang !== msg.language)) {
       const modelConfig = workerData.engine === "transducer"
         ? {
             transducer: { encoder: workerData.encoder, decoder: workerData.decoder, joiner: workerData.joiner },
@@ -288,13 +300,21 @@ parentPort.on("message", (msg) => {
             provider: "cpu",
             debug: 0,
           }
-        : {
-            senseVoice: { model: workerData.model, language: msg.language, useInverseTextNormalization: 1 },
-            tokens: workerData.tokens,
-            numThreads: 2,
-            provider: "cpu",
-            debug: 0,
-          };
+        : workerData.engine === "firered"
+          ? {
+              fireRedAsrCtc: { model: workerData.model },
+              tokens: workerData.tokens,
+              numThreads: 2,
+              provider: "cpu",
+              debug: 0,
+            }
+          : {
+              senseVoice: { model: workerData.model, language: msg.language, useInverseTextNormalization: 1 },
+              tokens: workerData.tokens,
+              numThreads: 2,
+              provider: "cpu",
+              debug: 0,
+            };
       const t0 = Date.now();
       rec = new mod.OfflineRecognizer({ modelConfig });
       lang = msg.language;
@@ -388,7 +408,9 @@ function ensureWorker(modelId: string): Worker {
           joiner: paths[2],
           tokens,
         }
-      : { modulePath: require.resolve("sherpa-onnx-node"), engine: "sensevoice", model: paths[0], tokens };
+      : isFireRedModel(modelId)
+        ? { modulePath: require.resolve("sherpa-onnx-node"), engine: "firered", model: paths[0], tokens }
+        : { modulePath: require.resolve("sherpa-onnx-node"), engine: "sensevoice", model: paths[0], tokens };
   const w = new Worker(workerSource, { eval: true, workerData });
   worker = w;
   modelLoading = true;
@@ -456,8 +478,8 @@ export async function transcribeSherpa(
   if (!modelReady(modelId)) throw new Error(t("error.localModelMissing"));
   const w = ensureWorker(modelId);
   if (workerLang !== language) {
-    // SenseVoice 语言变化会在 worker 内重建识别器，也算一次冷加载
-    if (!isParakeetModel(modelId)) modelLoading = true;
+    // SenseVoice 语言变化会在 worker 内重建识别器，也算一次冷加载；Parakeet/FireRedASR 不重建
+    if (modelId === SENSEVOICE) modelLoading = true;
     workerLang = language;
   }
   const id = nextJobId++;

@@ -6,7 +6,7 @@ import { localModelLabel } from "../../lib/modelLabel";
 import { api } from "../../api";
 import type { Translator } from "../../i18n";
 import type { Settings } from "../../../../shared/types";
-import { PARAKEET_FP32, isParakeetModel, isSherpaModel, supportsCantonese } from "../../../../shared/localModels";
+import { FIRERED_CTC, PARAKEET_FP32, isParakeetModel, isSherpaModel, supportsCantonese } from "../../../../shared/localModels";
 import { simplifyApplies } from "../../../../shared/zhNorm";
 import { useLocalModelStatus } from "../../lib/useLocalModelStatus";
 import { useConfirm } from "../../lib/useConfirm";
@@ -127,9 +127,11 @@ function VoiceTab(props: {
             hint={
               localModel === PARAKEET_FP32
                 ? t("settings.localModelHintParakeetFp32")
-                : localModels.some((m) => !isSherpaModel(m.id))
-                  ? `${t("settings.localModelHint")}${t("settings.localModelHintWhisper")}`
-                  : t("settings.localModelHint")
+                : localModel === FIRERED_CTC
+                  ? t("settings.localModelHintFireRed")
+                  : localModels.some((m) => !isSherpaModel(m.id))
+                    ? `${t("settings.localModelHint")}${t("settings.localModelHintWhisper")}`
+                    : t("settings.localModelHint")
             }
           >
             <select

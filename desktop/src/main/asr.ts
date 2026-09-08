@@ -4,7 +4,7 @@ import { simplifyWhisperOutput } from "../shared/zhNorm";
 import type { DoubaoSession } from "./doubao";
 import { t } from "./i18n";
 import { transcribeViaChatgpt } from "./chatgpt";
-import { ensureLocalServer, isSherpaModel, transcribeSherpa, whisperLanguage } from "./localasr";
+import { ensureLocalServer, isFireRedModel, isSherpaModel, transcribeSherpa, whisperLanguage } from "./localasr";
 
 const SAMPLE_RATE = 16000;
 // 离线流式字幕：每 1s 重解一次已录音频，1s 起步；超过 20s 后改解最后 20s 滑窗，成本恒定、字幕不断供
@@ -213,7 +213,9 @@ export function startLocalAsrSession(
   // 流式字幕的浮点音频增量维护：帧到达时转换一次，预览 tick 只拼装尾部滑窗。
   // 此前每个 tick 都对整段录音重新 pcmToFloat32，转换量随录音时长线性增长（免按长句
   // 时主进程每秒白转数 MB 采样）；最终整句识别仍由 finish() 用完整 frames 转换
-  const wantPartials = !!onPartial && isSherpaModel(model);
+  // FireRedASR 不出实时字幕：RTF 约 0.3，20s 滑窗单次重解要 6s，字幕会冻结；且预览
+  // 与最终识别共用 worker 串行队列，在飞的预览会顶住松手后的最终解码，得不偿失
+  const wantPartials = !!onPartial && isSherpaModel(model) && !isFireRedModel(model);
   const floatChunks: Float32Array[] = [];
   let floatSamples = 0;
   const appendFloatChunk = (frame: Int16Array): void => {
