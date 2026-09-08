@@ -8,7 +8,7 @@ import { downloadFile, DownloadCancelled, partialProgress } from "./download";
 import type { UpdateInfo, UpdateState } from "../shared/types";
 
 /**
- * 应用内更新：检查 GitHub latest release → 复用 download.ts 多源断点续传下载安装包
+ * 应用内更新：检查 GitHub latest release → 复用 download.ts 断点续传下载安装包（单源直链）
  * → NSIS 静默安装（/S，per-user 无需提权）后重启。
  *
  * 不用 electron-updater 的原因：发布流程是手工上传、release 资产里没有 latest.yml
@@ -122,8 +122,10 @@ let currentInfo: UpdateInfo | null = null;
 let downloadedPath: string | null = null;
 let abort: AbortController | null = null;
 
-/** 已下完整包且大小与远端一致：restart 后据此直接显示「安装并重启」，不再重下 ~100MB */
+/** 已下完整包且大小与远端一致：restart 后据此直接显示「安装并重启」，不再重下 ~100MB。
+ * size>0 防御 0 字节资产与 0 字节空文件的假就绪（会造出 error→retry→ready 死循环） */
 function installerReady(info: UpdateInfo): string | null {
+  if (info.size <= 0) return null;
   const dest = join(updateDir(), info.fileName);
   return existsSync(dest) && statSync(dest).size === info.size ? dest : null;
 }
@@ -194,6 +196,12 @@ export function cancelUpdateDownload(): void {
 
 /** 安装并退出：NSIS assisted + /S 静默装（per-user），装完由安装器拉起新版本；便携版只定位文件 */
 export function installUpdate(): void {
+  // updateState 的就绪快路径只报状态不落路径：重启恢复出的 ready 态点安装时按需补齐，
+  // 否则 installUpdate 拿着 null 直接 return，界面上是「点了没反应」的死按钮
+  if (!downloadedPath) {
+    const info = currentInfo ?? cached?.info;
+    if (info) downloadedPath = installerReady(info);
+  }
   if (!downloadedPath) return;
   if (currentInfo?.portable) {
     void shell.showItemInFolder(downloadedPath);
