@@ -258,6 +258,8 @@ export const zhCN = {
   "settings.asrLanguageAuto": "自动检测",
   "settings.asrLanguageParakeetAuto": "自动（英语 + 25 种欧洲语言）",
   "settings.asrLanguageParakeetHint": "Parakeet 自动检测英语及 25 种欧洲语言——不支持中文/日语/韩语/粤语，说这些语言请把模型换回 sensevoice-small。",
+  "settings.asrLanguageFireRedAuto": "自动（中英双语，含中文方言）",
+  "settings.asrLanguageFireRedHint": "FireRedASR 自动识别中文、英语及四川话等 20 余种中文方言，不使用此语言设置；日语、韩语、粤语请把模型换回 sensevoice-small。",
   "settings.asrLanguageYueWhisperHint": "Whisper tiny/base/small 不支持粤语，会按普通话解码。要真正识别粤语，请把模型换成 sensevoice-small。",
   "settings.asrProvider": "识别服务商",
   "settings.asrProviderDoubao": "豆包（流式，需登录）",

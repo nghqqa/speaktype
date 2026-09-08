@@ -249,6 +249,8 @@ export const zhTW: LocaleDict = {
   "settings.asrLanguageAuto": "自動偵測",
   "settings.asrLanguageParakeetAuto": "自動（英語 + 25 種歐洲語言）",
   "settings.asrLanguageParakeetHint": "Parakeet 自動偵測英語及 25 種歐洲語言——不支援中文/日語/韓語/粵語，說這些語言請把模型換回 sensevoice-small。",
+  "settings.asrLanguageFireRedAuto": "自動（中英雙語，含中文方言）",
+  "settings.asrLanguageFireRedHint": "FireRedASR 自動辨識中文、英語及四川話等 20 餘種中文方言，不使用此語言設定；日語、韓語、粵語請把模型換回 sensevoice-small。",
   "settings.asrLanguageYueWhisperHint": "Whisper tiny/base/small 不支援粵語，會按普通話解碼。要真正辨識粵語，請把模型換成 sensevoice-small。",
   "settings.asrProvider": "識別服務商",
   "settings.asrProviderDoubao": "豆包（流式，需登入）",

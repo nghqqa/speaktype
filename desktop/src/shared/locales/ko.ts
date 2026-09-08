@@ -264,6 +264,8 @@ export const ko: LocaleDict = {
   "settings.asrLanguageAuto": "자동 감지",
   "settings.asrLanguageParakeetAuto": "자동 (영어 + 유럽 25개 언어)",
   "settings.asrLanguageParakeetHint": "Parakeet는 영어와 유럽 25개 언어를 자동 감지합니다. 중국어/일본어/한국어/광동어는 지원하지 않으므로 모델을 sensevoice-small로 바꿔 주세요.",
+  "settings.asrLanguageFireRedAuto": "자동(중국어·영어, 중국 방언 포함)",
+  "settings.asrLanguageFireRedHint": "FireRedASR는 중국어·영어·쓰촨어 등 20여 개 중국 방언을 자동 인식하며 이 언어 설정을 사용하지 않습니다. 일본어·한국어·광둥어는 모델을 sensevoice-small로 되돌려 주세요.",
   "settings.asrLanguageYueWhisperHint": "Whisper tiny/base/small은 광동어를 지원하지 않아 표준 중국어로 해석됩니다. 광동어를 제대로 인식하려면 모델을 sensevoice-small로 바꿔 주세요.",
   "settings.asrProvider": "제공자",
   "settings.asrProviderDoubao": "Doubao (스트리밍, 로그인 필요)",

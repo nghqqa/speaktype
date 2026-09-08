@@ -264,6 +264,8 @@ export const en: LocaleDict = {
   "settings.asrLanguageAuto": "Auto detect",
   "settings.asrLanguageParakeetAuto": "Auto (English + 25 European languages)",
   "settings.asrLanguageParakeetHint": "Parakeet auto-detects English and 25 European languages — no Chinese/Japanese/Korean/Cantonese. For those, switch the model to sensevoice-small.",
+  "settings.asrLanguageFireRedAuto": "Auto (Chinese + English, incl. Chinese dialects)",
+  "settings.asrLanguageFireRedHint": "FireRedASR auto-recognizes Chinese, English and 20+ Chinese dialects such as Sichuanese; it ignores this setting. For Japanese, Korean or Cantonese, switch the model back to sensevoice-small.",
   "settings.asrLanguageYueWhisperHint": "Whisper tiny/base/small can't transcribe Cantonese — speech will be decoded as Mandarin Chinese. For real Cantonese, switch the model to sensevoice-small.",
   "settings.asrProvider": "Provider",
   "settings.asrProviderDoubao": "Doubao (streaming, requires login)",

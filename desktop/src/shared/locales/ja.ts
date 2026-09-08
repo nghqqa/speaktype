@@ -264,6 +264,8 @@ export const ja: LocaleDict = {
   "settings.asrLanguageAuto": "自動検出",
   "settings.asrLanguageParakeetAuto": "自動（英語 + 欧州 25 言語）",
   "settings.asrLanguageParakeetHint": "Parakeet は英語と欧州 25 言語を自動検出します。中国語/日本語/韓国語/広東語は非対応のため、モデルを sensevoice-small に切り替えてください。",
+  "settings.asrLanguageFireRedAuto": "自動（中国語・英語、中国方言を含む）",
+  "settings.asrLanguageFireRedHint": "FireRedASR は中国語・英語・四川語など 20 以上の中国方言を自動認識し、この言語設定は使用しません。日本語・韓国語・広東語はモデルを sensevoice-small に戻してください。",
   "settings.asrLanguageYueWhisperHint": "Whisper tiny/base/small は広東語に非対応で、標準中国語として解読されます。広東語を正しく認識するには、モデルを sensevoice-small に切り替えてください。",
   "settings.asrProvider": "プロバイダー",
   "settings.asrProviderDoubao": "Doubao（ストリーミング、要ログイン）",

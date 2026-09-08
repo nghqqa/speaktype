@@ -323,7 +323,11 @@ parentPort.on("message", (msg) => {
     const stream = rec.createStream();
     stream.acceptWaveform({ sampleRate: msg.sampleRate, samples: msg.samples });
     rec.decode(stream);
-    parentPort.postMessage({ id: msg.id, text: rec.getResult(stream).text.trim() });
+    let text = rec.getResult(stream).text.trim();
+    // FireRedASR 的 CTC 词表含 <sil> 字面项：非言语声（咳嗽/哼鸣）被 silero 判为有声而 CTC 判为
+    // 静音时会作为唯一输出漏过 noSpeech 闸；句中停顿解码器自己会吞掉，这里兜住整段静音的边角
+    if (workerData.engine === "firered") text = text.replaceAll("<sil>", "").trim();
+    parentPort.postMessage({ id: msg.id, text });
   } catch (error) {
     parentPort.postMessage({ id: msg.id, error: error instanceof Error ? error.message : String(error) });
   }
