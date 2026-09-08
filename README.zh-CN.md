@@ -11,7 +11,7 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-6366f1.svg)](LICENSE)
 [![Platform](https://img.shields.io/badge/Platform-Windows%2010%2F11%20x64%20%C2%B7%20macOS%20%E9%A2%84%E8%A7%88-0078d4.svg)](#-下载安装)
-[![Release](https://img.shields.io/badge/Release-v0.17.2-8b5cf6.svg)](https://github.com/wookat/speaktype/releases/latest)
+[![Release](https://img.shields.io/badge/Release-v0.18.0-8b5cf6.svg)](https://github.com/wookat/speaktype/releases/latest)
 [![i18n](https://img.shields.io/badge/界面语言-5%20种-16a34a.svg)](#-国际化)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-22c55e.svg)](CONTRIBUTING.md)
 
@@ -85,15 +85,14 @@ AI 润色同样接任意 OpenAI 兼容 Chat 端点（OpenAI / Google Gemini 的 
 
 | 平台 | 下载 | 状态 |
 |---|---|---|
-| Windows 10/11 x64 | [SpeakType-Setup-0.17.2.exe](https://github.com/wookat/speaktype/releases/download/v0.17.2/SpeakType-Setup-0.17.2.exe)（~98MB） | ✅ 稳定 |
-| Windows 绿色免安装 | [SpeakType-0.17.2-portable.exe](https://github.com/wookat/speaktype/releases/download/v0.17.2/SpeakType-0.17.2-portable.exe)（~87MB） | ✅ 稳定 |
+| Windows 10/11 x64 | [SpeakType-Setup-0.18.0.exe](https://github.com/wookat/speaktype/releases/download/v0.18.0/SpeakType-Setup-0.18.0.exe)（~98MB） | ✅ 稳定 |
+| Windows 绿色免安装 | [SpeakType-0.18.0-portable.exe](https://github.com/wookat/speaktype/releases/download/v0.18.0/SpeakType-0.18.0-portable.exe)（~87MB） | ✅ 稳定 |
 | Android（手机当麦克风） | [SpeakType-0.17.0.apk](https://github.com/wookat/speaktype/releases/download/v0.17.0/SpeakType-0.17.0.apk) —— 也可以不装，手机浏览器扫码直接用 | ✅ 可用 |
 | macOS Apple Silicon（macOS 15.5+） | [SpeakType-0.17.0-mac-arm64.dmg](https://github.com/wookat/speaktype/releases/download/v0.17.1-mac-preview/SpeakType-0.17.0-mac-arm64.dmg)（~113MB）· [zip](https://github.com/wookat/speaktype/releases/download/v0.17.1-mac-preview/SpeakType-0.17.0-mac-arm64.zip) | 🧪 预览版 — 未签名未公证，见 [docs/macos.md](docs/macos.md) |
 | macOS Intel（macOS 15.5+） | [SpeakType-0.17.0-mac-x64.dmg](https://github.com/wookat/speaktype/releases/download/v0.17.1-mac-preview/SpeakType-0.17.0-mac-x64.dmg)（~119MB）· [zip](https://github.com/wookat/speaktype/releases/download/v0.17.1-mac-preview/SpeakType-0.17.0-mac-x64.zip) | 🧪 预览版 — 交叉打包，未在 Intel 机器上实测 |
 
 最新发布：https://github.com/wookat/speaktype/releases/latest · 官网：https://speaktype.zalize.com
 
-> `main` 分支已领先 v0.17.2 安装包：原精度 Parakeet、VTT / 带时间戳 TXT 导出、下载停滞自动换源、悬浮条避让光标等将随下一个版本发布；现在想用可按下文从源码构建。
 
 也可以用 [Scoop](https://scoop.sh) 安装：
 

@@ -11,7 +11,7 @@ Offline recognition by default, optional cloud engines, a dictionary that learns
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-6366f1.svg)](LICENSE)
 [![Platform](https://img.shields.io/badge/Platform-Windows%2010%2F11%20x64%20%C2%B7%20macOS%20preview-0078d4.svg)](#-download--install)
-[![Release](https://img.shields.io/badge/Release-v0.17.2-8b5cf6.svg)](https://github.com/wookat/speaktype/releases/latest)
+[![Release](https://img.shields.io/badge/Release-v0.18.0-8b5cf6.svg)](https://github.com/wookat/speaktype/releases/latest)
 [![i18n](https://img.shields.io/badge/UI%20languages-5-16a34a.svg)](#-internationalization)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-22c55e.svg)](CONTRIBUTING.md)
 
@@ -85,15 +85,14 @@ AI polishing likewise accepts any OpenAI-compatible chat endpoint (OpenAI, Googl
 
 | Platform | Download | Status |
 |---|---|---|
-| Windows 10/11 x64 | [SpeakType-Setup-0.17.2.exe](https://github.com/wookat/speaktype/releases/download/v0.17.2/SpeakType-Setup-0.17.2.exe) (~98MB) | ✅ Stable |
-| Windows portable | [SpeakType-0.17.2-portable.exe](https://github.com/wookat/speaktype/releases/download/v0.17.2/SpeakType-0.17.2-portable.exe) (~87MB) | ✅ Stable |
+| Windows 10/11 x64 | [SpeakType-Setup-0.18.0.exe](https://github.com/wookat/speaktype/releases/download/v0.18.0/SpeakType-Setup-0.18.0.exe) (~98MB) | ✅ Stable |
+| Windows portable | [SpeakType-0.18.0-portable.exe](https://github.com/wookat/speaktype/releases/download/v0.18.0/SpeakType-0.18.0-portable.exe) (~87MB) | ✅ Stable |
 | Android (phone as microphone) | [SpeakType-0.17.0.apk](https://github.com/wookat/speaktype/releases/download/v0.17.0/SpeakType-0.17.0.apk) — or just open the QR code in the phone browser | ✅ Available |
 | macOS Apple Silicon (macOS 15.5+) | [SpeakType-0.17.0-mac-arm64.dmg](https://github.com/wookat/speaktype/releases/download/v0.17.1-mac-preview/SpeakType-0.17.0-mac-arm64.dmg) (~113MB) · [zip](https://github.com/wookat/speaktype/releases/download/v0.17.1-mac-preview/SpeakType-0.17.0-mac-arm64.zip) | 🧪 Preview — unsigned / not notarized, see [docs/macos.md](docs/macos.md) |
 | macOS Intel (macOS 15.5+) | [SpeakType-0.17.0-mac-x64.dmg](https://github.com/wookat/speaktype/releases/download/v0.17.1-mac-preview/SpeakType-0.17.0-mac-x64.dmg) (~119MB) · [zip](https://github.com/wookat/speaktype/releases/download/v0.17.1-mac-preview/SpeakType-0.17.0-mac-x64.zip) | 🧪 Preview — cross-built, not run on Intel hardware |
 
 Latest release: https://github.com/wookat/speaktype/releases/latest · Website: https://speaktype.zalize.com
 
-> `main` is ahead of the v0.17.2 installer: full-precision Parakeet, VTT / timestamped-TXT export, stall-aware download source switching and the cursor-avoiding floating bar ship in the next release. Build from source (below) to get them today.
 
 Or install via [Scoop](https://scoop.sh):
 
