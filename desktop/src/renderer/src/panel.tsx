@@ -9,6 +9,11 @@ import "./global.css";
 const BAR_COUNT = 24;
 // 字幕行高约 19px（13px 字号 × leading-snug），按设置的行数换算最大高度
 const CAPTION_LINE_PX = 19;
+// 麦克风冷启动检测：onLevel 送来的是归一化峰值（0-1，recorder worklet 取 |浮点样本|，
+// 不是主进程侧 0-32768 的原始峰值）。休眠/被占用的设备常采到 ≈0.001 的数字底噪（对应原始
+// 30-50），正常安静房间的环境噪声也在 0.003 之上。录音超过宽限仍是这种底噪 → 给可见提示
+const MIC_SILENT_PEAK = 0.003;
+const MIC_SILENT_HINT_MS = 1500;
 
 /** 贴屏幕底部居中的悬浮条：实时字幕 + 波形 + 取消，转写/润色期只显示旋转指示 */
 function Panel() {
@@ -19,6 +24,10 @@ function Panel() {
   const [captionOverflow, setCaptionOverflow] = useState(false);
   const levelRef = useRef(0);
   const captionRef = useRef<HTMLDivElement | null>(null);
+  // 麦克风冷启动提示：录音起手时刻与本段录到的最大电平，判定在下方波形刷新循环里做
+  const [micSilent, setMicSilent] = useState(false);
+  const recStartRef = useRef(0);
+  const maxLevelRef = useRef(0);
 
   useEffect(() => {
     void api.init().then((data) => {
@@ -32,6 +41,7 @@ function Panel() {
     const offStatus = api.onStatus(setStatus);
     const offLevel = api.onLevel((level) => {
       levelRef.current = level;
+      if (level > maxLevelRef.current) maxLevelRef.current = level;
     });
     return () => {
       offSettings();
@@ -44,9 +54,17 @@ function Panel() {
 
   // 波形刷新循环只在录音期间运行，空闲时不空转
   useEffect(() => {
-    if (!recording) return;
+    if (!recording) {
+      setMicSilent(false);
+      return;
+    }
+    recStartRef.current = Date.now();
+    maxLevelRef.current = 0;
     const timer = setInterval(() => {
       setLevels((prev) => [...prev.slice(1), Math.min(1, 0.08 + levelRef.current * 1.6)]);
+      // 冷启动判定：开录超过宽限仍只有数字底噪 → 提示；期间采到过真实电平（设备醒了）→ 立即撤下
+      const silent = Date.now() - recStartRef.current > MIC_SILENT_HINT_MS && maxLevelRef.current < MIC_SILENT_PEAK;
+      setMicSilent((prev) => (prev === silent ? prev : silent));
     }, 60);
     return () => {
       clearInterval(timer);
@@ -85,6 +103,11 @@ function Panel() {
           }}
         >
           {status.partial}
+        </div>
+      )}
+      {recording && micSilent && (
+        <div className="mb-2 max-w-[420px] rounded-2xl border border-amber-400/30 bg-[#292929]/95 px-4 py-2 text-[13px] leading-snug text-amber-300 shadow-lg">
+          {t("panel.micSilent")}
         </div>
       )}
       {(recording || working || status?.state === "error") && (

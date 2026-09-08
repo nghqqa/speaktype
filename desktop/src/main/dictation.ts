@@ -35,6 +35,10 @@ const VAD_SILENCE_PEAK = 900;
 const VAD_MIN_RECORD_MS = 1500;
 // 整段录音峰值低于此值（约 0.8% 满幅）才判定为纯静音丢弃，比 VAD 门限宽松以免误丢真实人声
 const NO_SPEECH_PEAK = 250;
+// 数字底噪地板（休眠/被占用的麦克风采到的是 30-50）：低于它说明设备压根没在送音频，
+// 收尾提示换成「检查麦克风」而不是「再说一次」。与 panel.tsx 的 MIC_SILENT_PEAK 数值等价
+// 但刻度不同（彼处为归一化 0-1 的 0.003 ≈ 本值/32768），改一处须按刻度换算另一处
+const MIC_SILENT_PEAK = 100;
 // 开口前的宽限：按下后还没检到人声时不按 vadSilenceMs 判停，给用户思考时间，超时才收尾走 noSpeech
 const VAD_NO_VOICE_TIMEOUT_MS = 10000;
 // 免按模式连续这么多轮无人声（每轮约 10s）自动退出，避免忘关后麦克风常开；
@@ -1053,7 +1057,7 @@ export class Dictation {
       this.partial = "";
       this.report("idle");
       if (this.maybeContinueHandsFree(true)) return;
-      if (!endedByKey) this.deps.showToast(t("toast.noSpeech"), t("toast.noSpeechBody"));
+      if (!endedByKey) this.showNoSpeechToast();
       return;
     }
 
@@ -1120,7 +1124,7 @@ export class Dictation {
       this.partial = "";
       this.report("idle");
       if (this.maybeContinueHandsFree(true)) return;
-      if (!raw || noContent) this.deps.showToast(t("toast.noSpeech"), t("toast.noSpeechBody"));
+      if (!raw || noContent) this.showNoSpeechToast();
       return;
     }
 
@@ -1304,6 +1308,15 @@ export class Dictation {
     setTimeout(() => {
       if (this.state === "idle") this.setPartial("");
     }, 1200);
+  }
+
+  /** 无有效语音的收尾提示：整段只有数字底噪时换更可行动的文案——问题在麦克风而非用户没说话 */
+  private showNoSpeechToast(): void {
+    const dead = this.maxPeak < MIC_SILENT_PEAK;
+    this.deps.showToast(
+      t(dead ? "toast.micSilent" : "toast.noSpeech"),
+      t(dead ? "toast.micSilentBody" : "toast.noSpeechBody"),
+    );
   }
 
   /** 命中的免按语音命令：不落字，转为编辑动作，并给短提示 */
