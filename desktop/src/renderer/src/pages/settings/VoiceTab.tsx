@@ -6,7 +6,7 @@ import { localModelLabel } from "../../lib/modelLabel";
 import { api } from "../../api";
 import type { Translator } from "../../i18n";
 import type { Settings } from "../../../../shared/types";
-import { PARAKEET_FP32, isParakeetModel, isSherpaModel, supportsCantonese } from "../../../../shared/localModels";
+import { FIRERED_CTC, PARAKEET_FP32, isFireRedModel, isParakeetModel, isSherpaModel, supportsCantonese } from "../../../../shared/localModels";
 import { simplifyApplies } from "../../../../shared/zhNorm";
 import { useLocalModelStatus } from "../../lib/useLocalModelStatus";
 import { useConfirm } from "../../lib/useConfirm";
@@ -29,6 +29,8 @@ function VoiceTab(props: {
   const [localModels, setLocalModels] = useState<Array<{ id: string; size: string }>>([]);
   const localModel = s.localModel || "base-q5_1";
   const parakeetActive = s.asrProvider === "local" && isParakeetModel(localModel);
+  // FireRedASR 同样不吃 language 设置（zh_en 编进模型）：与 Parakeet 同款禁用+真实语义显示
+  const fireRedActive = s.asrProvider === "local" && isFireRedModel(localModel);
   // whisper 小模型选粤语会被主进程降为普通话解码：选项禁止新选，已选中的旧值给提示
   const yueUnsupported = s.asrProvider === "local" && !parakeetActive && !supportsCantonese(localModel);
   const [local, setLocal] = useLocalModelStatus(localModel);
@@ -127,9 +129,11 @@ function VoiceTab(props: {
             hint={
               localModel === PARAKEET_FP32
                 ? t("settings.localModelHintParakeetFp32")
-                : localModels.some((m) => !isSherpaModel(m.id))
-                  ? `${t("settings.localModelHint")}${t("settings.localModelHintWhisper")}`
-                  : t("settings.localModelHint")
+                : localModel === FIRERED_CTC
+                  ? t("settings.localModelHintFireRed")
+                  : localModels.some((m) => !isSherpaModel(m.id))
+                    ? `${t("settings.localModelHint")}${t("settings.localModelHintWhisper")}`
+                    : t("settings.localModelHint")
             }
           >
             <select
@@ -340,15 +344,22 @@ function VoiceTab(props: {
         hint={
           parakeetActive
             ? t("settings.asrLanguageParakeetHint")
-            : yueUnsupported && s.language === "yue"
-              ? t("settings.asrLanguageYueWhisperHint")
-              : undefined
+            : fireRedActive
+              ? t("settings.asrLanguageFireRedHint")
+              : yueUnsupported && s.language === "yue"
+                ? t("settings.asrLanguageYueWhisperHint")
+                : undefined
         }
       >
         {parakeetActive ? (
           // Parakeet 自带语言检测且不吃 language 设置：禁用态显示其真实语义而非历史选中值（如「中文」会与 hint 矛盾）
           <select className="rounded-xl border border-slate-200 px-3 py-1.5 text-sm disabled:opacity-40" value="parakeet" disabled>
             <option value="parakeet">{t("settings.asrLanguageParakeetAuto")}</option>
+          </select>
+        ) : fireRedActive ? (
+          // 同 Parakeet：FireRedASR 是 zh_en 双语模型，语言设置不参与识别，禁用并显示真实语义
+          <select className="rounded-xl border border-slate-200 px-3 py-1.5 text-sm disabled:opacity-40" value="firered" disabled>
+            <option value="firered">{t("settings.asrLanguageFireRedAuto")}</option>
           </select>
         ) : (
         <select
