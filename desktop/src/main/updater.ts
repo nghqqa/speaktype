@@ -64,11 +64,12 @@ function pruneOldInstallers(keep: string): void {
   }
 }
 
-/** 从 release 的 SHA256SUMS.txt 文本里取指定文件的 sha256（sha256sum 格式：`<hash>␣␣<文件名>`） */
+/** 从 release 的 SHA256SUMS.txt 文本里取指定文件的 sha256（sha256sum 格式：`<hash>␣␣<文件名>`）。
+ *  大写哈希也收（PowerShell Get-FileHash 产出大写），统一转小写与 hashFile 摘要比对 */
 function sha256FromSums(text: string, fileName: string): string | undefined {
   for (const line of text.split("\n")) {
-    const m = /^([0-9a-f]{64})\s+\*?(.+?)\s*$/.exec(line);
-    if (m && (m[2] === fileName || m[2]?.endsWith(`/${fileName}`))) return m[1]!;
+    const m = /^([0-9a-f]{64})\s+\*?(.+?)\s*$/i.exec(line);
+    if (m && (m[2] === fileName || m[2]?.endsWith(`/${fileName}`))) return m[1]!.toLowerCase();
   }
   return undefined;
 }
@@ -103,7 +104,9 @@ export async function checkUpdate(): Promise<UpdateInfo | null> {
     if (sumsAsset) {
       try {
         const sums = await fetch(sumsAsset.browser_download_url, { signal: AbortSignal.timeout(CHECK_TIMEOUT_MS) });
+        // 非 2xx 与网络异常同样要留排障线索：将来「为什么没校验」的追问里这是半边证据
         if (sums.ok) sha256 = sha256FromSums(await sums.text(), asset.name);
+        else log.warn(`update sums fetch HTTP ${sums.status}, skip verification`);
       } catch (error) {
         log.warn("update sums fetch failed, skip verification", error);
       }
