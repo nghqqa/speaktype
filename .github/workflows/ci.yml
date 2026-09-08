@@ -1,0 +1,31 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  desktop:
+    name: desktop · typecheck / test / build
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: desktop
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: desktop/package-lock.json
+      # 纯编译/测试不需要 Electron 二进制：跳过 ~100MB 下载。
+      # 认这个变量的是 electron 自带的 install.js（官方支持自跳过）；postinstall 的 ensure-electron
+      # 只是检测到二进制缺失时补跑 install.js，恰好把变量透传下去
+      - run: npm ci
+        env:
+          ELECTRON_SKIP_BINARY_DOWNLOAD: 1
+      - run: npm run typecheck
+      - run: npm run test
+      - run: npm run build

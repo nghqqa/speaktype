@@ -12,6 +12,7 @@ cd desktop
 npm install
 npm run dev        # 开发模式（Electron）
 npm run typecheck  # 提交前必须通过
+npm run test        # 单元测试（vitest，纯逻辑模块）
 npm run build
 npm run pack       # NSIS 安装包 → release/
 ```
@@ -20,7 +21,7 @@ npm run pack       # NSIS 安装包 → release/
 
 1. Fork 并从 `main` 拉分支。
 2. 保持改动聚焦：一个 PR 解决一件事。
-3. `npm run typecheck` 与 `npm run build` 必须通过。
+3. `npm run typecheck`、`npm run test` 与 `npm run build` 必须通过（PR 会跑 CI）。
 4. 涉及界面文案时，`src/shared/locales/` 下中英文都要补（文件为 UTF-8，注意编辑器编码）。
 5. PR 描述解释「为什么」，不只是「改了什么」。
 
