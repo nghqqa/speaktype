@@ -4,7 +4,7 @@ import { join } from "node:path";
 import { app, shell } from "electron";
 import log from "electron-log/main.js";
 import pkg from "../../package.json";
-import { downloadFile, DownloadCancelled, partialProgress } from "./download";
+import { downloadFile, DownloadCancelled, hashFile, partialProgress } from "./download";
 import type { UpdateInfo, UpdateState } from "../shared/types";
 
 /**
@@ -17,6 +17,9 @@ import type { UpdateInfo, UpdateState } from "../shared/types";
  */
 
 const RELEASE_API = "https://api.github.com/repos/wookat/speaktype/releases/latest";
+/** 安装包只准从 GitHub 自家域取（资产直链 302 到 *.githubusercontent.com），跳到其他主机的重定向直接断开 */
+const TRUSTED_HOST = /^(?:[a-z0-9-]+\.)*(?:github\.com|githubusercontent\.com)$/i;
+export const trustedUpdateHost = (hostname: string): boolean => TRUSTED_HOST.test(hostname);
 /** 手动检查也不必每次打 API：同一会话内缓存一会儿，防连点/反复开关页撞匿名限额 */
 const CHECK_CACHE_MS = 10 * 60_000;
 /** 半开连接下 fetch 会永久挂起，与下载侧 stallGuard 的标准对齐给个超时 */
@@ -43,6 +46,14 @@ interface ReleaseAsset {
   name: string;
   browser_download_url: string;
   size: number;
+  /** GitHub 上传时自动计算的 `sha256:<hex>`，走 api.github.com 元数据通道，与资产下载链路无关 */
+  digest?: string;
+}
+
+/** 解析资产元数据的 digest 字段；形式不对（缺省/其他算法）返回 undefined */
+export function sha256FromDigest(digest: string | undefined): string | undefined {
+  const m = /^sha256:([0-9a-f]{64})$/i.exec(digest ?? "");
+  return m?.[1]?.toLowerCase();
 }
 
 let cached: { at: number; info: UpdateInfo | null } | null = null;
@@ -97,19 +108,25 @@ export async function checkUpdate(): Promise<UpdateInfo | null> {
       cached = { at: Date.now(), info: null };
       return null;
     }
-    // release 带了 SHA256SUMS.txt 就顺带取安装包哈希，下载后校验；取不到（旧发布没有/
-    // 网络失败）不阻塞检查，只是跳过校验——哈希清单是加固项，不是更新功能的前置条件
-    let sha256: string | undefined;
+    // 安装包哈希首选 API 资产元数据的 digest（与下载链路分离，改不了正文的人也改不了它），
+    // 次选 release 里的 SHA256SUMS.txt；两者都拿不到则不提供应用内更新（fail-closed），
+    // 关于页退回「有新版 → Releases」的纯提示——不校验就执行的安装包不应该存在
+    let sha256 = sha256FromDigest(asset.digest);
     const sumsAsset = release.assets?.find((a) => a.name === "SHA256SUMS.txt");
-    if (sumsAsset) {
+    if (!sha256 && sumsAsset) {
       try {
         const sums = await fetch(sumsAsset.browser_download_url, { signal: AbortSignal.timeout(CHECK_TIMEOUT_MS) });
         // 非 2xx 与网络异常同样要留排障线索：将来「为什么没校验」的追问里这是半边证据
         if (sums.ok) sha256 = sha256FromSums(await sums.text(), asset.name);
-        else log.warn(`update sums fetch HTTP ${sums.status}, skip verification`);
+        else log.warn(`update sums fetch HTTP ${sums.status}`);
       } catch (error) {
-        log.warn("update sums fetch failed, skip verification", error);
+        log.warn("update sums fetch failed", error);
       }
+    }
+    if (!sha256) {
+      log.warn(`update ${tag}: no sha256 for ${asset.name} (asset digest / SHA256SUMS.txt), in-app update disabled`);
+      cached = { at: Date.now(), info: null };
+      return null;
     }
     const info: UpdateInfo = {
       tag,
@@ -117,7 +134,7 @@ export async function checkUpdate(): Promise<UpdateInfo | null> {
       fileName: asset.name,
       portable: !!process.env.PORTABLE_EXECUTABLE_DIR,
       url: asset.browser_download_url,
-      ...(sha256 ? { sha256 } : {}),
+      sha256,
     };
     cached = { at: Date.now(), info };
     currentInfo = info;
@@ -168,9 +185,9 @@ export function updateState(): UpdateState | null {
 }
 
 /**
- * 下载安装包：单源 GitHub 直链——发布资产没有官方 sha256，加第三方代理镜像等于让不明中间人
- * 供二进制，不干；断点续传/停滞重试语义与模型下载一致。目标只取主进程 checkUpdate 的结果，
- * 不吃渲染层传参（fileName 会直接进 join 与 URL，不可信）
+ * 下载安装包：单源 GitHub 直链（重定向也锁在 GitHub 自家域），不加第三方代理镜像——会被执行的
+ * 二进制不让不明中间人供；下完按 release 元数据的 sha256 校验，断点续传/停滞重试语义与模型下载一致。
+ * 目标只取主进程 checkUpdate 的结果，不吃渲染层传参（fileName 会直接进 join 与 URL，不可信）
  */
 export async function downloadUpdate(): Promise<void> {
   const info = currentInfo ?? cached?.info;
@@ -199,6 +216,7 @@ export async function downloadUpdate(): Promise<void> {
         setState({ phase, progress: state?.progress ?? 0, ...(phase === "retrying" && source ? { source } : {}) });
       },
       info.sha256,
+      trustedUpdateHost,
     );
     downloadedPath = dest;
     setState({ phase: "ready", progress: 100 });
@@ -221,18 +239,40 @@ export function cancelUpdateDownload(): void {
   abort?.abort(new DownloadCancelled());
 }
 
+let installing = false;
+
 /** 安装并退出：NSIS assisted + /S 静默装（per-user），装完由安装器拉起新版本；便携版只定位文件 */
-export function installUpdate(): void {
+export async function installUpdate(): Promise<void> {
+  if (installing) return;
+  const info = currentInfo ?? cached?.info;
   // updateState 的就绪快路径只报状态不落路径：重启恢复出的 ready 态点安装时按需补齐，
   // 否则 installUpdate 拿着 null 直接 return，界面上是「点了没反应」的死按钮
-  if (!downloadedPath) {
-    const info = currentInfo ?? cached?.info;
-    if (info) downloadedPath = installerReady(info);
-  }
-  if (!downloadedPath) return;
-  if (currentInfo?.portable) {
+  if (!downloadedPath && info) downloadedPath = installerReady(info);
+  if (!downloadedPath || !info) return;
+  if (info.portable) {
     void shell.showItemInFolder(downloadedPath);
     return;
+  }
+  // 执行前再校验一次：就绪态只看了大小（重启恢复的文件没算过哈希），且下完到点安装之间文件可能被改；
+  // 安装包是会被执行的二进制，算 100MB 约 1s（worker 线程）换一次确定性值得
+  installing = true;
+  try {
+    setState({ phase: "verifying", progress: 100 });
+    const actual = await hashFile(downloadedPath);
+    if (actual !== info.sha256) {
+      rmSync(downloadedPath, { force: true });
+      downloadedPath = null;
+      setState({ phase: "error", progress: 0, error: "sha256 mismatch (installer)" });
+      log.warn(`update install refused: sha256 mismatch for ${info.fileName}`);
+      return;
+    }
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    setState({ phase: "error", progress: 100, error: message });
+    log.warn("update install verify failed", error);
+    return;
+  } finally {
+    installing = false;
   }
   log.info(`update install: quitting and running ${downloadedPath}`);
   // 先拉起安装器再退出：spawn detached 让它脱离本进程生命周期，app.quit() 异步收尾不抢跑。
