@@ -3,6 +3,13 @@
 /** SenseVoice 模型 id；localModel 等于它时走 sherpa-onnx 而不是 whisper-server */
 export const SENSEVOICE = "sensevoice-small";
 
+/**
+ * FireRedASR v2 CTC（sherpa-onnx int8）：中英双语 + 20 余种中文方言（四川/天津/河南等），
+ * 同硬件实测口语精度略高于 SenseVoice（TTS 难句 CER 约 2% vs 3%），代价是解码慢约 8 倍
+ *（RTF 约 0.3：10 秒语音约 2 秒出字）、无实时字幕、输出无标点（由应用的补标点管线兜底）。
+ */
+export const FIRERED_CTC = "fire-red-asr2-ctc-zh-en-int8";
+
 /** Parakeet TDT 0.6B v3（sherpa-onnx int8）：英语及 25 种欧洲语言，自动语种检测，不支持中文 */
 export const PARAKEET = "parakeet-tdt-0.6b-v3";
 
@@ -15,6 +22,7 @@ export const PARAKEET_FP32 = "parakeet-tdt-0.6b-v3-fp32";
 /** name 是面向用户的显示名（下拉项/提示里用），id 仍是配置与下载的唯一键 */
 export const LOCAL_MODELS = [
   { id: SENSEVOICE, name: "SenseVoice Small", size: "234MB" },
+  { id: FIRERED_CTC, name: "FireRedASR", size: "740MB" },
   { id: PARAKEET, name: "Parakeet", size: "660MB" },
   { id: PARAKEET_FP32, name: "Parakeet", size: "2.5GB" },
   { id: "tiny-q5_1", name: "Whisper tiny", size: "32MB" },
@@ -24,7 +32,12 @@ export const LOCAL_MODELS = [
 
 /** 走 sherpa-onnx 进程内推理的模型（否则走 whisper-server 子进程） */
 export function isSherpaModel(model: string): boolean {
-  return model === SENSEVOICE || isParakeetModel(model);
+  return model === SENSEVOICE || model === FIRERED_CTC || isParakeetModel(model);
+}
+
+/** FireRedASR v2 CTC：zh_en 双语模型，语言设置既不编进配置也不影响识别结果 */
+export function isFireRedModel(model: string): boolean {
+  return model === FIRERED_CTC;
 }
 
 /** Parakeet 两个精度版本共享同一套语义：自带语种检测、不吃 language 设置、不识中文 */
