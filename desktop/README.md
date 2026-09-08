@@ -35,4 +35,5 @@ npm run dev        # 开发模式
 npm run typecheck
 npm run build      # 编译 out/
 npm run pack       # electron-builder → release/SpeakType-Setup-x.y.z.exe（NSIS 安装包）
+npm run sums       # 生成 release/SHA256SUMS.txt；随安装包上传到 Release，应用内更新据此校验
 ```

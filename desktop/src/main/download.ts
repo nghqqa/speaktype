@@ -246,6 +246,8 @@ async function downloadFromUrl(
   onProgress?: (got: number, total: number) => void,
   signal?: AbortSignal,
   onPhase?: PhaseCallback,
+  /** 调用方已知的期望 sha256（如 release 清单里的安装包哈希）；优先级低于响应自带的 X-Linked-ETag */
+  expectedSha256?: string,
 ): Promise<void> {
   if (signal?.aborted) throw new DownloadCancelled();
   mkdirSync(dirname(dest), { recursive: true });
@@ -259,7 +261,7 @@ async function downloadFromUrl(
     offset = statSync(part).size;
     // 已下满但在校验/改名前被杀：直接本地收尾，不发 Range（服务端会回 416 被误判源失败）
     if (meta.total > 0 && offset >= meta.total) {
-      const want = meta.etag || knownSha256(url);
+      const want = meta.etag || expectedSha256 || knownSha256(url);
       if (want) onPhase?.("verifying");
       if (offset === meta.total && (!want || (await hashFile(part)) === want)) {
         rmSync(metaPath, { force: true });
@@ -298,7 +300,7 @@ async function downloadFromUrl(
   const resumed = res.status === 206 && offset > 0;
   if (!resumed) offset = 0;
   // 换源续传时新源可能不带校验值，沿用首源记在元数据里的期望值，续传结果仍能整体校验
-  const expected = res.linkedSha256 || knownSha256(url) || (resumed ? meta?.etag || "" : "");
+  const expected = res.linkedSha256 || expectedSha256 || knownSha256(url) || (resumed ? meta?.etag || "" : "");
   if (resumed && meta && expected && meta.etag && meta.etag !== expected) {
     // 服务端文件已变化，续传无意义：从头重下
     guard.clear();
@@ -372,6 +374,8 @@ export async function downloadFile(
   onProgress?: (got: number, total: number) => void,
   signal?: AbortSignal,
   onPhase?: PhaseCallback,
+  /** 调用方已知的期望 sha256，透传给单源下载做完整性校验（缺省则沿用 ETag/清单机制） */
+  expectedSha256?: string,
 ): Promise<void> {
   const errors: Error[] = [];
   const sourceAt = (i: number): DownloadSource => ({ index: i + 1, total: sources.length, host: new URL(sources[i]!).host });
@@ -382,8 +386,13 @@ export async function downloadFile(
     try {
       // 本源停滞重试：首源只报「连接中断正在重试」，不说「通过第 1/N 个源重试」（并未换源）；
       // 已在后备源上时保留序号，用户知道当前在哪个源上等
-      await downloadFromUrl(url, dest, onProgress, signal, (phase) =>
-        onPhase?.(phase, phase === "retrying" && index === 0 ? undefined : sourceAt(index)),
+      await downloadFromUrl(
+        url,
+        dest,
+        onProgress,
+        signal,
+        (phase) => onPhase?.(phase, phase === "retrying" && index === 0 ? undefined : sourceAt(index)),
+        expectedSha256,
       );
       log.info(`download ok: ${new URL(url).host} -> ${basename(dest)} in ${((Date.now() - startedAt) / 1000).toFixed(1)}s`);
       return;
