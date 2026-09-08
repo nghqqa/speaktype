@@ -22,10 +22,17 @@ function ModelTab(props: { t: Translator; s: Settings; update: (patch: Partial<S
 
   const runTest = () => {
     setTestState("testing");
-    void api.testPolish().then(({ ok, detail }) => {
-      setTestState(ok ? "ok" : "fail");
-      setTestDetail((ok ? detail : humanTestError(detail, t)).slice(0, 120));
-    });
+    void api
+      .testPolish()
+      .then(({ ok, detail }) => {
+        setTestState(ok ? "ok" : "fail");
+        setTestDetail((ok ? detail : humanTestError(detail, t)).slice(0, 120));
+      })
+      // IPC 层异常（进程退出间隙等）不会走主进程的 ok:false 返回，不接住会永久卡在 testing
+      .catch((error: unknown) => {
+        setTestState("fail");
+        setTestDetail((error instanceof Error ? error.message : String(error)).slice(0, 120));
+      });
   };
 
   return (

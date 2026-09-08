@@ -67,10 +67,17 @@ function VoiceTab(props: {
   };
   const runTest = () => {
     setTestState("testing");
-    void api.testAsr().then(({ ok, detail }) => {
-      setTestState(ok ? "ok" : "fail");
-      setTestDetail((ok ? detail : humanTestError(detail, t)).slice(0, 120));
-    });
+    void api
+      .testAsr()
+      .then(({ ok, detail }) => {
+        setTestState(ok ? "ok" : "fail");
+        setTestDetail((ok ? detail : humanTestError(detail, t)).slice(0, 120));
+      })
+      // IPC 层异常（进程退出间隙等）不会走主进程的 ok:false 返回，不接住会永久卡在 testing
+      .catch((error: unknown) => {
+        setTestState("fail");
+        setTestDetail((error instanceof Error ? error.message : String(error)).slice(0, 120));
+      });
   };
   return (
     <>
@@ -222,10 +229,16 @@ function VoiceTab(props: {
               className="rounded-xl border border-slate-200 px-3 py-1.5 text-sm hover:bg-slate-50"
               onClick={() => {
                 setChatgptDetail(t("settings.modelTesting"));
-                void api.testChatgpt().then(({ ok, detail }) => {
-                  setChatgptDetail(`${ok ? "OK" : "FAIL"} · ${detail.slice(0, 160)}`);
-                  void api.chatgptReady().then(setChatgptReady);
-                });
+                void api
+                  .testChatgpt()
+                  .then(({ ok, detail }) => {
+                    setChatgptDetail(`${ok ? "OK" : "FAIL"} · ${detail.slice(0, 160)}`);
+                    // 仅刷新 ready 徽标，失败无需提示，接住防 unhandledrejection
+                    void api.chatgptReady().then(setChatgptReady).catch(() => {});
+                  })
+                  .catch((error: unknown) => {
+                    setChatgptDetail(`FAIL · ${(error instanceof Error ? error.message : String(error)).slice(0, 160)}`);
+                  });
               }}
             >
               {t("settings.chatgptTest")}
@@ -256,9 +269,14 @@ function VoiceTab(props: {
               className="rounded-xl border border-slate-200 px-3 py-1.5 text-sm hover:bg-slate-50"
               onClick={() => {
                 setDoubaoDetail(t("settings.modelTesting"));
-                void api.testDoubao().then(({ ok, detail }) => {
-                  setDoubaoDetail(`${ok ? "OK" : "FAIL"} · ${detail.slice(0, 160)}`);
-                });
+                void api
+                  .testDoubao()
+                  .then(({ ok, detail }) => {
+                    setDoubaoDetail(`${ok ? "OK" : "FAIL"} · ${detail.slice(0, 160)}`);
+                  })
+                  .catch((error: unknown) => {
+                    setDoubaoDetail(`FAIL · ${(error instanceof Error ? error.message : String(error)).slice(0, 160)}`);
+                  });
               }}
             >
               {t("settings.chatgptTest")}
