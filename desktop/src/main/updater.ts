@@ -64,6 +64,16 @@ function pruneOldInstallers(keep: string): void {
   }
 }
 
+/** 从 release 的 SHA256SUMS.txt 文本里取指定文件的 sha256（sha256sum 格式：`<hash>␣␣<文件名>`）。
+ *  大写哈希也收（PowerShell Get-FileHash 产出大写），统一转小写与 hashFile 摘要比对 */
+function sha256FromSums(text: string, fileName: string): string | undefined {
+  for (const line of text.split("\n")) {
+    const m = /^([0-9a-f]{64})\s+\*?(.+?)\s*$/i.exec(line);
+    if (m && (m[2] === fileName || m[2]?.endsWith(`/${fileName}`))) return m[1]!.toLowerCase();
+  }
+  return undefined;
+}
+
 /** 检查更新：仅 Windows；返回 null = 无新版/不支持。portable 版没有安装器语义，由 UI 换成「打开所在文件夹」 */
 export async function checkUpdate(): Promise<UpdateInfo | null> {
   if (process.platform !== "win32") return null;
@@ -87,11 +97,27 @@ export async function checkUpdate(): Promise<UpdateInfo | null> {
       cached = { at: Date.now(), info: null };
       return null;
     }
+    // release 带了 SHA256SUMS.txt 就顺带取安装包哈希，下载后校验；取不到（旧发布没有/
+    // 网络失败）不阻塞检查，只是跳过校验——哈希清单是加固项，不是更新功能的前置条件
+    let sha256: string | undefined;
+    const sumsAsset = release.assets?.find((a) => a.name === "SHA256SUMS.txt");
+    if (sumsAsset) {
+      try {
+        const sums = await fetch(sumsAsset.browser_download_url, { signal: AbortSignal.timeout(CHECK_TIMEOUT_MS) });
+        // 非 2xx 与网络异常同样要留排障线索：将来「为什么没校验」的追问里这是半边证据
+        if (sums.ok) sha256 = sha256FromSums(await sums.text(), asset.name);
+        else log.warn(`update sums fetch HTTP ${sums.status}, skip verification`);
+      } catch (error) {
+        log.warn("update sums fetch failed, skip verification", error);
+      }
+    }
     const info: UpdateInfo = {
       tag,
       size: asset.size,
       fileName: asset.name,
       portable: !!process.env.PORTABLE_EXECUTABLE_DIR,
+      url: asset.browser_download_url,
+      ...(sha256 ? { sha256 } : {}),
     };
     cached = { at: Date.now(), info };
     currentInfo = info;
@@ -162,7 +188,7 @@ export async function downloadUpdate(): Promise<void> {
   setState({ phase: "downloading", progress: seed ? Math.floor((seed.got / seed.total) * 100) : 0 });
   try {
     await downloadFile(
-      [`https://github.com/wookat/speaktype/releases/download/${info.tag}/${info.fileName}`],
+      [info.url],
       dest,
       (got, total) => {
         if (total > 0) setState({ phase: "downloading", progress: Math.floor((got / total) * 100) });
@@ -172,6 +198,7 @@ export async function downloadUpdate(): Promise<void> {
         // retrying/verifying 期间保留已到百分比，进度条不回跳
         setState({ phase, progress: state?.progress ?? 0, ...(phase === "retrying" && source ? { source } : {}) });
       },
+      info.sha256,
     );
     downloadedPath = dest;
     setState({ phase: "ready", progress: 100 });

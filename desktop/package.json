@@ -13,6 +13,7 @@
     "build": "electron-vite build",
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "pack": "electron-vite build && electron-builder --win --x64",
+    "sums": "node scripts/release-sums.mjs",
     "pack:portable": "electron-vite build && electron-builder --win portable --x64",
     "pack:dir": "electron-vite build && electron-builder --win --x64 --dir",
     "pack:mac": "electron-vite build && electron-builder --mac --config electron-builder-mac.yml"
