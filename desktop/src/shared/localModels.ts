@@ -51,6 +51,21 @@ export function isFireRedModel(model: string): boolean {
   return model === FIRERED_CTC;
 }
 
+/**
+ * FireRedASR 词表的英文 token 是训练时归一的全大写（REPORT/EMAIL/CHECK），日常口述里
+ * 观感突兀；终稿落字前把「整词全大写」的英文转小写，常见缩写（本来就该大写的）保留。
+ * 边界：非白名单的品牌缩写（IBM/NASA）也会被转小写——模型对英文一律大写、无法区分
+ * 用户本意，按「常见词小写 + 缩写白名单大写」取最优期望；白名单可按需增补。
+ */
+const ACRONYM_KEEP = new Set([
+  "AI", "API", "APP", "CEO", "COO", "CTO", "CPU", "GPU", "GPS", "GPT", "HR", "ID", "IT", "KPI",
+  "LLM", "OK", "OS", "PDF", "PPT", "PS", "QQ", "USB", "URL", "VIP", "VS",
+]);
+
+export function normalizeFireRedCaps(text: string): string {
+  return text.replace(/[A-Z]{2,}/g, (w) => (ACRONYM_KEEP.has(w) ? w : w.toLowerCase()));
+}
+
 /** Parakeet 两个精度版本共享同一套语义：自带语种检测、不吃 language 设置、不识中文 */
 export function isParakeetModel(model: string): boolean {
   return model === PARAKEET || model === PARAKEET_FP32;

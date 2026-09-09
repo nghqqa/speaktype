@@ -7,7 +7,7 @@ import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { Worker } from "node:worker_threads";
 import log from "electron-log/main.js";
-import { FIRERED_CTC, LOCAL_MODELS, PARAKEET, PARAKEET_FP32, SENSEVOICE, STREAMING_CAPTIONS, isFireRedModel, isParakeetModel, isSherpaModel } from "../shared/localModels";
+import { FIRERED_CTC, LOCAL_MODELS, PARAKEET, PARAKEET_FP32, SENSEVOICE, STREAMING_CAPTIONS, isFireRedModel, isParakeetModel, isSherpaModel, normalizeFireRedCaps } from "../shared/localModels";
 import type { LocalModelStatus } from "../shared/types";
 import { DownloadCancelled, downloadFiles, hfSources, partialProgress } from "./download";
 import { t } from "./i18n";
@@ -455,6 +455,9 @@ function ensureWorker(modelId: string): Worker {
     if (!job) return;
     pending.delete(msg.id);
     if (msg.error) job.reject(new Error(msg.error));
+    // FireRedASR 英文 token 全大写：终稿落字前归一（缩写白名单除外），与 <sil> 剥离一样
+    // 只作用于 firered 引擎；听写与文件转写共用 transcribeSherpa 这一个收口点
+    else if (isFireRedModel(modelId)) job.resolve(normalizeFireRedCaps(collapseCjkSpaces(msg.text ?? "")));
     else job.resolve(collapseCjkSpaces(msg.text ?? ""));
     if (pending.size === 0) scheduleIdleShutdown();
   });
