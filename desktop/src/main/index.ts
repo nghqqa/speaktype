@@ -25,7 +25,9 @@ import { closeBridge, ensureBridge, hasAppKey, onAppKeyCaptured, showBridge, tes
 import { HOLD_KEY_CHOICES, REWRITE_KEY_CHOICES, TOGGLE_KEY_CHOICES, HotkeyManager } from "./hotkey";
 import { t, translator } from "./i18n";
 import { testAsr } from "./asr";
-import { AVAILABLE_LOCAL_MODELS, cancelLocalModelDownload, deleteLocalModel, downloadLocalModel, isSherpaModel, localModelStatus, onLocalModelStatus, prewarmSherpa, releaseSherpaWorker, stopLocalServer } from "./localasr";
+import { AVAILABLE_LOCAL_MODELS, cancelLocalModelDownload, deleteLocalModel, downloadLocalModel, isSherpaModel, localModelStatus, onLocalModelStatus, prewarmSherpa, releaseSherpaWorker, stopLocalServer, streamingModelReady } from "./localasr";
+import { prewarmStreamingCaptions, releaseStreamingWorker } from "./streaming-asr";
+import { STREAMING_ZIPFORMER } from "../shared/localModels";
 import { initMuteRecovery } from "./mute";
 import { downloadPunct, onPunctStatus, punctStatus } from "./punct";
 import { cancelTranscribe, onTranscribeState, startTranscribe, transcribeState } from "./transcribe";
@@ -460,6 +462,13 @@ function registerIpc(): void {
         prewarmSherpa(next.localModel, next.language);
       }
     }
+    // 流式字幕 worker（约 167MB 常驻）随开关联动：关即释放；开且本地识别、模型就绪才预热
+    // （流式只服务本地通道的草稿字幕，云端 provider 开着也吃不到，别白驻内存）；
+    // session 中途的开关变化不热切换（正在说的那句沿用旧方式），下一句自然生效
+    if ("streamingCaptions" in patch) {
+      if (!next.streamingCaptions) releaseStreamingWorker();
+      else if (next.asrProvider === "local" && streamingModelReady()) prewarmStreamingCaptions();
+    }
     // 切走豆包 provider 时收掉隐藏预载的桥接窗口，不让其继续保持豆包连接
     if ("asrProvider" in patch && next.asrProvider !== "doubao") closeBridge();
     if ("asrProvider" in patch && next.asrProvider !== "chatgpt") closeChatgptBridge();
@@ -647,6 +656,8 @@ function registerIpc(): void {
       if (s.asrProvider === "local" && s.localModel === model && isSherpaModel(model)) {
         prewarmSherpa(model, s.language);
       }
+      // 流式字幕模型下完即预热（本地识别且开关开着才有意义），第一句直接吃上流式草稿
+      if (model === STREAMING_ZIPFORMER && s.streamingCaptions && s.asrProvider === "local") prewarmStreamingCaptions();
     }
     return result;
   });
@@ -655,6 +666,8 @@ function registerIpc(): void {
     // 先停掉可能占用模型文件的推理进程/线程，Windows 下否则删不掉
     releaseSherpaWorker();
     stopLocalServer();
+    // 流式 worker 也持有模型文件句柄：删流式模型前同样要先释放
+    if (model === STREAMING_ZIPFORMER) releaseStreamingWorker();
     const result = deleteLocalModel(model);
     refreshTrayMenu();
     return result;
@@ -815,6 +828,13 @@ void app.whenReady().then(() => {
   // 启动后空闲预热离线模型，把 ONNX 冷启动成本移出用户第一句
   if (settings.asrProvider === "local" && isSherpaModel(settings.localModel)) {
     setTimeout(() => prewarmSherpa(getSettings().localModel, getSettings().language), 3000);
+  }
+  // 流式草稿与终稿模型类型无关（whisper 终稿 + 流式草稿合法）：只按 provider 门控，
+  // 不嵌在 sherpa 条件里，否则 whisper 终稿用户的第一句字幕要等按需拉起
+  if (settings.asrProvider === "local" && settings.streamingCaptions) {
+    setTimeout(() => {
+      if (getSettings().asrProvider === "local" && getSettings().streamingCaptions) prewarmStreamingCaptions();
+    }, 5000);
   }
   // 设置写盘被拒（文件只读/权限不足）时给可见提示，否则重启后改动静默丢失
   onPersistError(() => showToast(t("toast.saveFailed"), t("toast.saveFailedBody")));
