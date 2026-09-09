@@ -150,6 +150,7 @@ interface OpenedResponse {
   status: number;
   headers: Record<string, string | string[]>;
   body: Readable;
+  /** 响应链（302 沿途或终点）自带的 X-Linked-ETag sha256；可信度低于调用方给的期望值 */
   linkedSha256: string;
   /** 不再读正文时中止请求（非 2xx、需从头重下等提前退出路径） */
   discard: () => void;
@@ -163,8 +164,13 @@ function openRequest(
   url: string,
   headers: Record<string, string>,
   signal: AbortSignal,
+  allowHost?: HostFilter,
 ): Promise<OpenedResponse> {
   return new Promise((resolve, reject) => {
+    if (allowHost && !allowHost(new URL(url).hostname)) {
+      reject(new Error(`untrusted host ${new URL(url).hostname}`));
+      return;
+    }
     const req = net.request({ url, method: "GET", redirect: "manual", cache: "no-store", useSessionCookies: false });
     for (const [name, value] of Object.entries(headers)) req.setHeader(name, value);
     let linkedSha256 = "";
@@ -173,7 +179,16 @@ function openRequest(
     signal.addEventListener("abort", onAbort, { once: true });
     // 注意 ClientRequest 的 close 在请求体发完就触发（早于 response），不能拿它当事务结束；
     // 正文读完/中断以 response 的 close 为准
-    req.on("redirect", (_status, _method, _redirectUrl, responseHeaders) => {
+    req.on("redirect", (_status, _method, redirectUrl, responseHeaders) => {
+      // 跳出可信域的 302（被劫持的中间跳转、镜像偷换下游）直接断开：安装包这类会被执行的产物
+      // 只准从名单内的主机取，不给「哈希也顺手改掉」的中间人留口子
+      const host = new URL(redirectUrl).hostname;
+      if (allowHost && !allowHost(host)) {
+        unlink();
+        reject(new Error(`redirect to untrusted host ${host}`));
+        req.abort();
+        return;
+      }
       linkedSha256 ||= sha256FromHeaders(responseHeaders);
       req.followRedirect();
     });
@@ -214,7 +229,10 @@ createReadStream(workerData.path)
   .on("error", (error) => { throw error; });
 `;
 
-function hashFile(path: string): Promise<string> {
+/** 主机名过滤：返回 false 的主机（含重定向目标）一律拒绝连接 */
+export type HostFilter = (hostname: string) => boolean;
+
+export function hashFile(path: string): Promise<string> {
   return new Promise<string>((resolve, reject) => {
     const worker = new Worker(HASH_WORKER, { eval: true, workerData: { path } });
     let done = false;
@@ -246,8 +264,9 @@ async function downloadFromUrl(
   onProgress?: (got: number, total: number) => void,
   signal?: AbortSignal,
   onPhase?: PhaseCallback,
-  /** 调用方已知的期望 sha256（如 release 清单里的安装包哈希）；优先级低于响应自带的 X-Linked-ETag */
+  /** 调用方已知的期望 sha256（如 release 元数据里的安装包哈希）；来自可信的元数据通道，优先级高于响应自带的 X-Linked-ETag */
   expectedSha256?: string,
+  allowHost?: HostFilter,
 ): Promise<void> {
   if (signal?.aborted) throw new DownloadCancelled();
   mkdirSync(dirname(dest), { recursive: true });
@@ -261,7 +280,7 @@ async function downloadFromUrl(
     offset = statSync(part).size;
     // 已下满但在校验/改名前被杀：直接本地收尾，不发 Range（服务端会回 416 被误判源失败）
     if (meta.total > 0 && offset >= meta.total) {
-      const want = meta.etag || expectedSha256 || knownSha256(url);
+      const want = expectedSha256 || meta.etag || knownSha256(url);
       if (want) onPhase?.("verifying");
       if (offset === meta.total && (!want || (await hashFile(part)) === want)) {
         rmSync(metaPath, { force: true });
@@ -285,7 +304,7 @@ async function downloadFromUrl(
   };
   let res: OpenedResponse;
   try {
-    res = await openRequest(url, headers, guard.signal);
+    res = await openRequest(url, headers, guard.signal, allowHost);
   } catch (error) {
     guard.clear();
     throw abortReason(error);
@@ -299,15 +318,16 @@ async function downloadFromUrl(
 
   const resumed = res.status === 206 && offset > 0;
   if (!resumed) offset = 0;
+  // 期望值取信顺序：调用方从元数据通道拿到的哈希 > 响应头 X-Linked-ETag（与正文同一条连接，能改正文就能改它）> 本地清单；
   // 换源续传时新源可能不带校验值，沿用首源记在元数据里的期望值，续传结果仍能整体校验
-  const expected = res.linkedSha256 || expectedSha256 || knownSha256(url) || (resumed ? meta?.etag || "" : "");
+  const expected = expectedSha256 || res.linkedSha256 || knownSha256(url) || (resumed ? meta?.etag || "" : "");
   if (resumed && meta && expected && meta.etag && meta.etag !== expected) {
     // 服务端文件已变化，续传无意义：从头重下
     guard.clear();
     res.discard();
     rmSync(part, { force: true });
     rmSync(metaPath, { force: true });
-    return downloadFromUrl(url, dest, onProgress, signal, onPhase);
+    return downloadFromUrl(url, dest, onProgress, signal, onPhase, expectedSha256, allowHost);
   }
   const remaining = Number(res.headers["content-length"]) || 0;
   const total = resumed ? offset + remaining : remaining;
@@ -376,6 +396,8 @@ export async function downloadFile(
   onPhase?: PhaseCallback,
   /** 调用方已知的期望 sha256，透传给单源下载做完整性校验（缺省则沿用 ETag/清单机制） */
   expectedSha256?: string,
+  /** 可信主机过滤（含重定向目标），缺省不限制 */
+  allowHost?: HostFilter,
 ): Promise<void> {
   const errors: Error[] = [];
   const sourceAt = (i: number): DownloadSource => ({ index: i + 1, total: sources.length, host: new URL(sources[i]!).host });
@@ -393,6 +415,7 @@ export async function downloadFile(
         signal,
         (phase) => onPhase?.(phase, phase === "retrying" && index === 0 ? undefined : sourceAt(index)),
         expectedSha256,
+        allowHost,
       );
       log.info(`download ok: ${new URL(url).host} -> ${basename(dest)} in ${((Date.now() - startedAt) / 1000).toFixed(1)}s`);
       return;

@@ -324,9 +324,12 @@ export const ja: LocaleDict = {
   "settings.keepFailedAudio": "失敗した録音を保持",
   "settings.keepFailedAudioHint":
     "認識に失敗した録音をこの PC に保存し、履歴から再試行できます（最大 20 件 / 7 日 / 50MB、アップロードされません）。",
+  "settings.autoUpdateCheck": "更新を自動確認",
+  "settings.autoUpdateCheckHint":
+    "起動時に GitHub へ最新バージョン番号を 1 回だけ問い合わせます（バージョン番号のみ、あなたの情報は送信しません）。オフにすると完全オフラインになり、バージョン情報ページで手動確認できます。",
   "settings.enhancedVad": "高精度音声検出（Silero VAD）",
   "settings.enhancedVadHint":
-    "ニューラルネットワークで人の声とノイズを区別し、自動終了と幻聴フィルタの精度が向上します。約 3MB のアドオンをダウンロード、完全にローカルで動作。",
+    "ニューラルネットワークで人の声とノイズを区別し、自動終了と幻聴フィルタの精度が向上します。内蔵済みで、完全にローカルで動作。",
   "settings.enhancedVadDownload": "アドオンをダウンロード（約 3MB）",
   "settings.enhancedVadDownloading": "ダウンロード中 {{progress}}%",
   "settings.enhancedVadReady": "アドオン準備完了 — 音声検出がアップグレードされました",
@@ -368,6 +371,7 @@ export const ja: LocaleDict = {
   "settings.about.openSource": "オープンソース",
   "settings.about.openSourceDesc":
     "SpeakType は MIT ライセンスの完全なオープンソースです。音声もテキストも当方のサーバーには送られません — 認識と文章調整はあなたが設定したサービスに直接接続します。",
+  "settings.about.website": "公式サイト",
   "settings.about.repo": "GitHub リポジトリ",
   "settings.about.issues": "問題を報告",
   "settings.about.license": "ライセンス",
@@ -383,12 +387,21 @@ export const ja: LocaleDict = {
   "settings.about.updatePhaseRetrying": "接続が切断されました。再試行中…",
   "settings.about.updatePhaseVerifying": "検証中…",
   "settings.about.updatePortableHint": "ポータブル版：ダウンロードしたインストーラーを実行するとアップグレードできます（設定と履歴は保持されます）",
+  "settings.about.checkUpdate": "更新を確認",
+  "settings.about.checking": "更新を確認中…",
+  "settings.about.upToDate": "最新バージョンです（{{version}}）",
+  "settings.about.checkFailed": "更新を確認できませんでした：{{reason}}",
+  "settings.about.checkFailedNetwork": "GitHub に接続できません",
+  "settings.about.checkFailedRateLimit": "GitHub API の利用上限に達しました。しばらくしてからお試しください",
+  "settings.about.checkFailedServer": "GitHub がエラーを返しました",
+  "settings.about.checkFailedOther": "予期しない応答",
+  "settings.about.autoCheckOffHint": "自動確認はオフです。「更新を確認」を押すまで通信しません。",
   "settings.about.logs": "ログ",
   "settings.about.logsOpen": "ログフォルダを開く",
   "settings.about.contributeDesc": "Issue と Pull Request を歓迎します — 一緒に優れたオープンソース音声入力を作りましょう。",
   "settings.about.privacy": "プライバシー",
   "settings.about.privacyDesc":
-    "すべての設定（ホットキー、ペルソナ、辞書、キー）は %APPDATA%\\SpeakType にローカル保存され、履歴もローカルのみでいつでも消去できます。",
+    "すべての設定（ホットキー、ペルソナ、辞書、キー）は %APPDATA%\\SpeakType にローカル保存され、履歴もローカルのみでいつでも消去できます。あなたが設定した認識／文章調整サービス以外に SpeakType が自ら行う通信は、オフにできるバージョン確認（設定 → 一般 → 更新を自動確認、GitHub にバージョン番号のみ要求）だけです。",
 
   "panel.connecting": "接続中…",
   "panel.recording": "聞いています",

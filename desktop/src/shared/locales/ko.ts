@@ -324,9 +324,12 @@ export const ko: LocaleDict = {
   "settings.keepFailedAudio": "실패한 녹음 보관",
   "settings.keepFailedAudioHint":
     "인식에 실패한 녹음을 이 PC 에 보관하여 기록에서 재시도할 수 있습니다 (최대 20개 / 7일 / 50MB, 업로드되지 않음).",
+  "settings.autoUpdateCheck": "업데이트 자동 확인",
+  "settings.autoUpdateCheckHint":
+    "시작 시 GitHub에 최신 버전 번호를 한 번 조회합니다(버전 번호만 요청하며 사용자 정보는 전송하지 않음). 끄면 완전히 오프라인으로 동작하며 정보 페이지에서 수동 확인할 수 있습니다.",
   "settings.enhancedVad": "향상된 음성 감지 (Silero VAD)",
   "settings.enhancedVadHint":
-    "신경망으로 사람 목소리와 소음을 구분하여 자동 종료와 환청 필터링이 더 정확해집니다. 약 3MB 추가 패키지 다운로드 필요, 완전히 로컬에서 실행.",
+    "신경망으로 사람 목소리와 소음을 구분하여 자동 종료와 환청 필터링이 더 정확해집니다. 내장되어 있으며 완전히 로컬에서 실행.",
   "settings.enhancedVadDownload": "추가 패키지 다운로드 (약 3MB)",
   "settings.enhancedVadDownloading": "다운로드 중 {{progress}}%",
   "settings.enhancedVadReady": "추가 패키지 준비 완료 — 음성 감지가 업그레이드되었습니다",
@@ -368,6 +371,7 @@ export const ko: LocaleDict = {
   "settings.about.openSource": "오픈소스",
   "settings.about.openSourceDesc":
     "SpeakType 은 MIT 라이선스의 완전한 오픈소스입니다. 음성과 텍스트는 저희 서버로 전송되지 않으며, 인식과 다듬기는 사용자가 설정한 서비스에 직접 연결됩니다.",
+  "settings.about.website": "웹사이트",
   "settings.about.repo": "GitHub 저장소",
   "settings.about.issues": "문제 신고",
   "settings.about.license": "라이선스",
@@ -383,12 +387,21 @@ export const ko: LocaleDict = {
   "settings.about.updatePhaseRetrying": "연결이 끊겼습니다. 다시 시도 중…",
   "settings.about.updatePhaseVerifying": "확인 중…",
   "settings.about.updatePortableHint": "휴대용 버전: 다운로드한 설치 파일을 실행하면 업그레이드됩니다(설정과 기록은 유지됩니다)",
+  "settings.about.checkUpdate": "업데이트 확인",
+  "settings.about.checking": "업데이트 확인 중…",
+  "settings.about.upToDate": "최신 버전입니다 ({{version}})",
+  "settings.about.checkFailed": "업데이트를 확인할 수 없습니다: {{reason}}",
+  "settings.about.checkFailedNetwork": "GitHub에 연결할 수 없음",
+  "settings.about.checkFailedRateLimit": "GitHub API 요청 한도 초과, 잠시 후 다시 시도하세요",
+  "settings.about.checkFailedServer": "GitHub가 오류를 반환했습니다",
+  "settings.about.checkFailedOther": "예상치 못한 응답",
+  "settings.about.autoCheckOffHint": "자동 확인이 꺼져 있습니다. 「업데이트 확인」을 누르기 전까지 어떤 요청도 보내지 않습니다.",
   "settings.about.logs": "로그",
   "settings.about.logsOpen": "로그 폴더 열기",
   "settings.about.contributeDesc": "Issue 와 Pull Request 를 환영합니다 — 함께 훌륭한 오픈소스 음성 입력을 만들어요.",
   "settings.about.privacy": "개인정보",
   "settings.about.privacyDesc":
-    "모든 설정 (단축키, 페르소나, 사전, 키) 은 %APPDATA%\\SpeakType 에 로컬 저장되며 기록도 로컬 전용으로 언제든 지울 수 있습니다.",
+    "모든 설정(핫키, 페르소나, 사전, 키)은 %APPDATA%\\SpeakType에 로컬 저장되며 기록도 로컬에만 남고 언제든 지울 수 있습니다. 사용자가 설정한 인식/다듬기 서비스 외에 SpeakType이 스스로 하는 유일한 통신은 끌 수 있는 버전 확인(설정 → 일반 → 업데이트 자동 확인, GitHub에 버전 번호만 요청)입니다.",
 
   "panel.connecting": "연결 중…",
   "panel.recording": "듣고 있습니다",

@@ -348,7 +348,7 @@ scoop install speaktype</code></pre>
       <details><summary>为什么安装包没有签名？</summary><p>代码签名证书要花钱，项目目前还没有这笔预算。安装包由公开源码构建；SmartScreen 会显示“更多信息 → 仍要运行”。macOS 上应用为 ad-hoc 签名、未经公证——安装指南里有一行 <code>xattr</code> 命令可绕过。</p></details>
       <details><summary>macOS 版能日常使用了吗？</summary><p>目前是预览版。构建、安装、授权和按住说话听写已在 Apple 芯片真机上验证；Intel 版为交叉编译，尚未在 Intel 硬件上运行过。whisper.cpp 与自动从修改中学习目前仅 Windows 提供。</p></details>
       <details><summary>ChatGPT 和豆包这两个“免 Key”服务商怎么回事？</summary><p>它们复用你在应用内自己登录的会话，并调用未公开接口。默认关闭，随时可能失效，也可能不符合对应服务的条款——账号风险需要你自己判断。不确定就优先用离线引擎或自己的 API Key。详见 <a href="https://github.com/wookat/speaktype/blob/main/DISCLAIMER.md">DISCLAIMER.md</a>。</p></details>
-      <details><summary>可以完全不联网使用吗？</summary><p>可以。一次性下载模型（支持续传、SHA-256 校验、三个镜像源）之后，一切都离线运行。绿色版把数据放在可执行文件旁边。</p></details>
+      <details><summary>可以完全不联网使用吗？</summary><p>可以。一次性下载模型（支持续传、SHA-256 校验、三个镜像源）之后，一切都离线运行。除你配置的云端引擎外，SpeakType 唯一会自行发起的联网是启动时向 GitHub 查一次最新版本号（只请求版本号），可在 设置 → 通用 → “自动检查更新” 关闭，做到严格零联网。绿色版把数据放在可执行文件旁边。</p></details>
       <details><summary>出问题了去哪儿反馈？</summary><p>到 <a href="https://github.com/wookat/speaktype/issues">GitHub</a> 提 issue。识别失败的录音会保留在本地（最多 20 段 / 7 天），可在历史页重试而不用重说；主日志在数据目录里。</p></details>
     </div>
   </div>

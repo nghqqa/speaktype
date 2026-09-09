@@ -324,9 +324,12 @@ export const en: LocaleDict = {
   "settings.keepFailedAudio": "Keep failed recordings",
   "settings.keepFailedAudioHint":
     "When recognition fails, keep the recording on this machine so it can be retried from History (max 20 clips / 7 days / 50MB; never uploaded).",
+  "settings.autoUpdateCheck": "Check for updates automatically",
+  "settings.autoUpdateCheckHint":
+    "On launch, ask GitHub once for the latest version number (only the version is requested; nothing about you is sent). Turn off to stay fully offline — you can still check manually on the About page.",
   "settings.enhancedVad": "Enhanced voice detection (Silero VAD)",
   "settings.enhancedVadHint":
-    "Uses a neural network to tell speech from noise — more accurate auto-stop and hallucination filtering. Requires a ~3MB add-on download; runs fully on this machine.",
+    "Uses a neural network to tell speech from noise — more accurate auto-stop and hallucination filtering. Built in; runs fully on this machine.",
   "settings.enhancedVadDownload": "Download add-on (~3MB)",
   "settings.enhancedVadDownloading": "Downloading {{progress}}%",
   "settings.enhancedVadReady": "Add-on ready — voice detection upgraded",
@@ -368,6 +371,7 @@ export const en: LocaleDict = {
   "settings.about.openSource": "Open source",
   "settings.about.openSourceDesc":
     "SpeakType is MIT-licensed and fully open source. Your voice and text never touch our servers — recognition and polish connect directly to services you configure.",
+  "settings.about.website": "Website",
   "settings.about.repo": "GitHub repository",
   "settings.about.issues": "Report an issue",
   "settings.about.license": "License",
@@ -383,12 +387,21 @@ export const en: LocaleDict = {
   "settings.about.updatePhaseRetrying": "Connection lost, retrying…",
   "settings.about.updatePhaseVerifying": "Verifying…",
   "settings.about.updatePortableHint": "Portable build: run the downloaded installer to upgrade (settings & history are preserved)",
+  "settings.about.checkUpdate": "Check for updates",
+  "settings.about.checking": "Checking for updates…",
+  "settings.about.upToDate": "You're on the latest version ({{version}})",
+  "settings.about.checkFailed": "Couldn't check for updates: {{reason}}",
+  "settings.about.checkFailedNetwork": "no connection to GitHub",
+  "settings.about.checkFailedRateLimit": "GitHub API rate limit reached, try again later",
+  "settings.about.checkFailedServer": "GitHub returned an error",
+  "settings.about.checkFailedOther": "unexpected response",
+  "settings.about.autoCheckOffHint": "Automatic update checks are off — nothing is sent until you click “Check for updates”.",
   "settings.about.logs": "Logs",
   "settings.about.logsOpen": "Open log folder",
   "settings.about.contributeDesc": "Issues and pull requests are welcome — help us build great open-source voice typing.",
   "settings.about.privacy": "Privacy",
   "settings.about.privacyDesc":
-    "All settings (hotkeys, personas, dictionary, keys) live locally under %APPDATA%\\SpeakType; history is local-only and can be cleared anytime.",
+    "All settings (hotkeys, personas, dictionary, keys) live locally under %APPDATA%\\SpeakType; history is local-only and can be cleared anytime. Apart from the recognition / polish services you configure, the only connection SpeakType makes on its own is an optional version check against GitHub (Settings → General → Check for updates automatically).",
 
   "panel.connecting": "Connecting…",
   "panel.recording": "Listening",

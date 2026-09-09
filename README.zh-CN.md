@@ -47,7 +47,7 @@
 | 🎭 **人设风格** | `Alt+1..9` 秒切：默认 / 自动翻译 / 汇报老板 / 命令行 / 自定义 prompt，还可按前台应用自动切 |
 | 📖 **热词纠错** | 词典里加上人名、产品名，同音/近音误字自动替换；你手动改过的词自动学进词典（Windows），历史页也能一键学词 |
 | ✍️ **选中即改写** | 选一段文字按住 `F8` 说「翻译成英文」「改得正式一点」，直接替换选区；中途切了窗口，结果留在剪贴板而不是落错地方 |
-| 🧠 **增强人声检测** | 可选下载 Silero VAD 神经网络（约 35MB，本机运行），噪声环境下自动结束与防幻听更准 |
+| 🧠 **增强人声检测** | 可选开启 Silero VAD 神经网络（已内置，本机运行），噪声环境下自动结束与防幻听更准 |
 | 🔤 **标点与数字** | 开箱即用的规则断句标点，可选本机标点模型（约 281MB 附加包），中文口语数字转写（三点半 → 3:30） |
 | 🔁 **失败可重试** | 识别失败的录音保留在本机（最多 20 段/7 天/50MB，可关），历史页一键重试，不用重说 |
 | 🎵 **文件转录** | 拖入音频/视频文件（mp3、wav、m4a、ogg、flac、mp4…最长 3 小时）→ 离线分段转写带时间戳 → 导出 TXT / 带时间戳 TXT / SRT / VTT |
@@ -151,7 +151,7 @@ npm run pack:mac   # macOS arm64 + x64 dmg/zip → release/（见 docs/macos.md�
 
 技术栈：Electron + React 19 + Tailwind 4 + lucide-react；全局热键 uiohook-napi（macOS 点按组合键走 `globalShortcut`）；落字 Windows 用 koffi `SendInput`、macOS 用 `osascript` ⌘V；离线识别 SenseVoice / Parakeet（sherpa-onnx）与 whisper.cpp（Windows）；增强 VAD Silero；手机麦克风走可自部署的 Cloudflare Worker 中转。详见 [desktop/README.md](desktop/README.md)。
 
-仓库里还有一个更早形态的 [Chrome 浏览器扩展](docs/browser-extension.md)（网页内按住说话落字）。
+更早形态的 Chrome 浏览器扩展（网页内按住说话落字，含配套 `worker/` 中转）已从主线移除，归档在 tag [`archive/browser-extension`](https://github.com/wookat/speaktype/tree/archive/browser-extension)（[说明文档](https://github.com/wookat/speaktype/blob/archive/browser-extension/docs/browser-extension.md)）。
 
 欢迎 [Issue](https://github.com/wookat/speaktype/issues) 与 Pull Request，贡献流程见 [CONTRIBUTING.md](CONTRIBUTING.md)。本仓库有意不跑 CI，验收标准是本地 `typecheck` + `build` + 打包版实测。
 

@@ -9,7 +9,7 @@ import type {
   Stats,
   StatusPayload,
   TranscribeState,
-  UpdateInfo,
+  UpdateCheck,
   UpdateState,
   VadStatus,
 } from "../shared/types";
@@ -76,9 +76,8 @@ const api = {
   close: (): Promise<void> => ipcRenderer.invoke("window:close"),
   openExternal: (url: string): Promise<void> => ipcRenderer.invoke("open:external", url),
   openLogs: (): Promise<void> => ipcRenderer.invoke("log:open"),
-  latestVersion: (): Promise<string> => ipcRenderer.invoke("app:latestVersion"),
-  /** 应用内更新：仅 Windows 返回新版信息；下载/安装状态经 onUpdateState 推送。目标由主进程 check 决定 */
-  updateCheck: (): Promise<UpdateInfo | null> => ipcRenderer.invoke("update:check"),
+  /** 检查更新（四态：available / releaseOnly / upToDate / failed）；下载/安装状态经 onUpdateState 推送。目标由主进程 check 决定 */
+  updateCheck: (): Promise<UpdateCheck> => ipcRenderer.invoke("update:check"),
   updateState: (): Promise<UpdateState | null> => ipcRenderer.invoke("update:state"),
   updateDownload: (): Promise<void> => ipcRenderer.invoke("update:download"),
   updateCancel: (): Promise<void> => ipcRenderer.invoke("update:cancel"),

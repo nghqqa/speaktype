@@ -30,7 +30,16 @@ import { initMuteRecovery } from "./mute";
 import { downloadPunct, onPunctStatus, punctStatus } from "./punct";
 import { cancelTranscribe, onTranscribeState, startTranscribe, transcribeState } from "./transcribe";
 import { cleanupLegacyVad, downloadVad, onVadStatus, vadStatus } from "./vad";
-import { cancelUpdateDownload, checkUpdate, downloadUpdate, installUpdate, onUpdateState, updateState, versionNewer } from "./updater";
+import {
+  cancelUpdateDownload,
+  checkUpdate,
+  downloadUpdate,
+  installUpdate,
+  latestReleaseTag,
+  onUpdateState,
+  updateState,
+} from "./updater";
+import { versionNewer } from "../shared/compareVersions";
 import { testPolish } from "./polish";
 import {
   broadcastToPhones,
@@ -534,44 +543,38 @@ function registerIpc(): void {
     await applySettingsPatch(parsed.settings);
     return { ok: true, ignored: parsed.ignored };
   });
-  // 轻量新版提示（非自动更新）：启动后空闲预拨一次 GitHub latest release。
+  // 轻量新版提示（非自动更新）：启动后空闲预拨一次 GitHub latest release，可在 通用 → 自动检查更新 关掉。
   // 匿名 API 限额 60 次/时/IP，共享出口 IP 极易耗尽：成功结果落盘缓存 24h，失败 30 分钟后重试至多 3 次，仍失败静默（离线不打扰）
-  let latestTag = "";
   const latestCacheFile = join(app.getPath("userData"), "latest-release.json");
-  try {
-    const cached = JSON.parse(readFileSync(latestCacheFile, "utf8")) as { tag?: string; at?: number };
-    if (cached.tag && Date.now() - (cached.at ?? 0) < 24 * 3600_000) latestTag = cached.tag;
-  } catch {
-    // 无缓存或损坏：当作首次拨号
-  }
   let latestRetriesLeft = 3;
-  const fetchLatestTag = async (): Promise<string> => {
-    if (latestTag) return latestTag;
+  const startupUpdateCheck = async (): Promise<void> => {
+    if (!getSettings().autoUpdateCheck) return;
+    let tag = "";
     try {
-      const res = await fetch("https://api.github.com/repos/wookat/speaktype/releases/latest", {
-        headers: { accept: "application/vnd.github+json" },
-      });
-      if (res.ok) {
-        latestTag = ((await res.json()) as { tag_name?: string }).tag_name ?? "";
-        log.info(`latest release prefetched: ${latestTag || "(none)"}`);
-        if (latestTag) {
-          try {
-            writeFileSync(latestCacheFile, JSON.stringify({ tag: latestTag, at: Date.now() }));
-          } catch {
-            // 缓存写入失败不影响本次提示
-          }
-        }
-      }
+      const cached = JSON.parse(readFileSync(latestCacheFile, "utf8")) as { tag?: string; at?: number };
+      if (cached.tag && Date.now() - (cached.at ?? 0) < 24 * 3600_000) tag = cached.tag;
     } catch {
-      // 离线：下面统一走重试
+      // 无缓存或损坏：当作首次拨号
     }
-    // 离线重试成功同样要走一次新版提示（首发失败的那次 .then 拿到的是空串）
-    if (!latestTag && latestRetriesLeft-- > 0)
-      setTimeout(() => void fetchLatestTag().then(announceUpdateToast), 30 * 60_000);
-    return latestTag;
+    if (!tag) {
+      try {
+        tag = await latestReleaseTag();
+        log.info(`latest release prefetched: ${tag}`);
+        try {
+          writeFileSync(latestCacheFile, JSON.stringify({ tag, at: Date.now() }));
+        } catch {
+          // 缓存写入失败不影响本次提示
+        }
+      } catch {
+        // 离线：稍后重试（重试前再看一次开关，期间关掉就不再拨）
+        if (latestRetriesLeft-- > 0) setTimeout(() => void startupUpdateCheck(), 30 * 60_000);
+        return;
+      }
+    }
+    announceUpdateToast(tag);
   };
   // 有新版给一条可点击直达关于页的提示——更新入口藏在设置深处，不来一发用户永远看不见。
-  // 挂在 fetchLatestTag 的结果回调而非 fetch 成功分支：24h 缓存命中、30 分钟离线重试成功都要提示；
+  // 24h 缓存命中、30 分钟离线重试成功都要提示；
   // 仅 Windows（mac 无应用内更新，点了也到不了下载按钮，保持关于页提示即可）
   function announceUpdateToast(tag: string): void {
     if (process.platform !== "win32") return;
@@ -589,9 +592,8 @@ function registerIpc(): void {
       10000,
     );
   }
-  setTimeout(() => void fetchLatestTag().then(announceUpdateToast), 5000);
-  ipcMain.handle("app:latestVersion", () => fetchLatestTag());
-  // 应用内更新：仅 Windows；mac 检查恒返回 null，关于页退回「前往 Releases」提示。
+  setTimeout(() => void startupUpdateCheck(), 5000);
+  // 应用内更新：仅 Windows；mac 检查最多到 releaseOnly，关于页退回「前往 Releases」提示。
   // download 不收渲染层入参：目标一律取主进程 checkUpdate 的结果（fileName 会进 join/URL，不可信）
   ipcMain.handle("update:check", () => checkUpdate());
   ipcMain.handle("update:state", () => updateState());
