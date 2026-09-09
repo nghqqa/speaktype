@@ -82,6 +82,11 @@ export interface Settings {
   keepFailedAudio: boolean;
   /** 悬浮条实时字幕最大行数（1/3/6），超出滚动到最新 */
   captionLines: number;
+  /**
+   * 真流式草稿字幕：录音中由独立流式模型逐字生成草稿（松手后终稿仍用当前离线模型）。
+   * 关（默认）时维持滑窗重解码的近似字幕；模型未就绪/加载失败时自动降级，不影响终稿。
+   */
+  streamingCaptions: boolean;
   /** 手机当麦克风：局域网 HTTPS+WS 服务，手机扫码按住说话、文字落到电脑光标处 */
   remoteMicEnabled: boolean;
   /** 手机麦克风连接方式：局域网直连（默认）或公网中转（Cloudflare Worker 自部署） */

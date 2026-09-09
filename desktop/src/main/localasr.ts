@@ -7,7 +7,7 @@ import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { Worker } from "node:worker_threads";
 import log from "electron-log/main.js";
-import { FIRERED_CTC, LOCAL_MODELS, PARAKEET, PARAKEET_FP32, SENSEVOICE, isFireRedModel, isParakeetModel, isSherpaModel } from "../shared/localModels";
+import { FIRERED_CTC, LOCAL_MODELS, PARAKEET, PARAKEET_FP32, SENSEVOICE, STREAMING_CAPTIONS, isFireRedModel, isParakeetModel, isSherpaModel, normalizeFireRedCaps } from "../shared/localModels";
 import type { LocalModelStatus } from "../shared/types";
 import { DownloadCancelled, downloadFiles, hfSources, partialProgress } from "./download";
 import { t } from "./i18n";
@@ -21,6 +21,17 @@ import { t } from "./i18n";
 
 export { LOCAL_MODELS, PARAKEET, PARAKEET_FP32, SENSEVOICE, isFireRedModel, isParakeetModel, isSherpaModel, whisperLanguage } from "../shared/localModels";
 
+/** 流式字幕模型是否已就绪（文件齐全且字节数吻合）；供 streaming-asr.ts 判定是否启用流式 */
+export function streamingModelReady(): boolean {
+  return modelReady(STREAMING_CAPTIONS);
+}
+
+/** 流式字幕模型的四个落盘路径（encoder/decoder/joiner/tokens），供流式 worker 加载 */
+export function streamingModelPaths(): { encoder: string; decoder: string; tokens: string } {
+  const files = modelFiles(STREAMING_CAPTIONS).map(([, p]) => p);
+  return { encoder: files[0]!, decoder: files[1]!, tokens: files[2]! };
+}
+
 const SENSEVOICE_BASE =
   "csukuangfj/sherpa-onnx-sense-voice-zh-en-ja-ko-yue-2024-07-17/resolve/main";
 
@@ -29,6 +40,11 @@ const FIRERED_CTC_BASE =
 
 const PARAKEET_BASE =
   "csukuangfj/sherpa-onnx-nemo-parakeet-tdt-0.6b-v3-int8/resolve/main";
+
+// 流式字幕模型（two-pass 的草稿半边）：下载/续传/删除复用同一套基建，但推理在
+// 独立的 streaming worker（见 streaming-asr.ts），不进本文件的离线 worker
+const STREAMING_CAPTIONS_BASE =
+  "csukuangfj/sherpa-onnx-streaming-paraformer-bilingual-zh-en/resolve/main";
 
 // fp32 版 encoder.onnx 只是图结构，权重在同目录的 encoder.weights 外部数据文件（onnx external data，
 // 加载时按相对路径自动找），四个文件必须落在同一目录
@@ -63,6 +79,14 @@ function modelFiles(model: string): Array<[string, string, number?]> {
     return [
       [`${FIRERED_CTC_BASE}/model.int8.onnx`, join(dir, "model.int8.onnx"), 775_861_420],
       [`${FIRERED_CTC_BASE}/tokens.txt`, join(dir, "tokens.txt"), 79_172],
+    ];
+  }
+  if (model === STREAMING_CAPTIONS) {
+    const dir = join(modelsDir(), STREAMING_CAPTIONS);
+    return [
+      [`${STREAMING_CAPTIONS_BASE}/encoder.int8.onnx`, join(dir, "encoder.int8.onnx"), 165_462_184],
+      [`${STREAMING_CAPTIONS_BASE}/decoder.int8.onnx`, join(dir, "decoder.int8.onnx"), 71_664_561],
+      [`${STREAMING_CAPTIONS_BASE}/tokens.txt`, join(dir, "tokens.txt"), 75_756],
     ];
   }
   if (model === PARAKEET) {
@@ -259,7 +283,7 @@ export function deleteLocalModel(model: string): LocalModelStatus {
     rmSync(`${dest}.part`, { force: true });
     rmSync(`${dest}.part.json`, { force: true });
   }
-  if (isSherpaModel(model)) rmSync(join(modelsDir(), model), { recursive: true, force: true });
+  if (isSherpaModel(model) || model === STREAMING_CAPTIONS) rmSync(join(modelsDir(), model), { recursive: true, force: true });
   readyUntil.delete(model);
   lastError.delete(model);
   log.info(`local model ${model} deleted`);
@@ -431,6 +455,9 @@ function ensureWorker(modelId: string): Worker {
     if (!job) return;
     pending.delete(msg.id);
     if (msg.error) job.reject(new Error(msg.error));
+    // FireRedASR 英文 token 全大写：终稿落字前归一（缩写白名单除外），与 <sil> 剥离一样
+    // 只作用于 firered 引擎；听写与文件转写共用 transcribeSherpa 这一个收口点
+    else if (isFireRedModel(modelId)) job.resolve(normalizeFireRedCaps(collapseCjkSpaces(msg.text ?? "")));
     else job.resolve(collapseCjkSpaces(msg.text ?? ""));
     if (pending.size === 0) scheduleIdleShutdown();
   });

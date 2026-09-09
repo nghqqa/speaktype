@@ -14,6 +14,17 @@ export const FIRERED_CTC = "fire-red-asr2-ctc-zh-en-int8";
 export const PARAKEET = "parakeet-tdt-0.6b-v3";
 
 /**
+ * 流式字幕模型（sherpa-onnx streaming paraformer 中英双语 int8，三件套共约 238MB）。
+ * 只服务录音中的草稿字幕（two-pass 的「看」半边），不参与落字终稿——
+ * 因此刻意不进 LOCAL_MODELS：不得出现在转写模型下拉与 LOCAL_MODEL_IDS 校验里。
+ * 模型选型（同类素材 A/B：TTS 专有名词句/混英句/四川话）：2023 双语 zipformer 中文
+ * 病理性叠字（张江→张江江），否决；2025 中文 zipformer 中文零叠字但英文全乱；
+ * paraformer 双语中文仅零星错字（张江→张将）且 report/email 等英文单词全对、
+ * RTF 0.055 三者最快——草稿层的双语诉求与中文可读性兼得。
+ */
+export const STREAMING_CAPTIONS = "streaming-paraformer-zh-en";
+
+/**
  * 同一 Parakeet 的 fp32 原精度版：int8 量化在个别首词（如 "Please"→"Ple"）处于判定边界会吞字
  *（离线 A/B：int8 15/99、fp32 0/99），fp32 消除该问题，代价是 2.5GB 下载、常驻内存约 2.7GB。
  */
@@ -38,6 +49,21 @@ export function isSherpaModel(model: string): boolean {
 /** FireRedASR v2 CTC：zh_en 双语模型，语言设置既不编进配置也不影响识别结果 */
 export function isFireRedModel(model: string): boolean {
   return model === FIRERED_CTC;
+}
+
+/**
+ * FireRedASR 词表的英文 token 是训练时归一的全大写（REPORT/EMAIL/CHECK），日常口述里
+ * 观感突兀；终稿落字前把「整词全大写」的英文转小写，常见缩写（本来就该大写的）保留。
+ * 边界：非白名单的品牌缩写（IBM/NASA）也会被转小写——模型对英文一律大写、无法区分
+ * 用户本意，按「常见词小写 + 缩写白名单大写」取最优期望；白名单可按需增补。
+ */
+const ACRONYM_KEEP = new Set([
+  "AI", "API", "APP", "CEO", "COO", "CTO", "CPU", "GPU", "GPS", "GPT", "HR", "ID", "IT", "KPI",
+  "LLM", "OK", "OS", "PDF", "PPT", "PS", "QQ", "USB", "URL", "VIP", "VS",
+]);
+
+export function normalizeFireRedCaps(text: string): string {
+  return text.replace(/[A-Z]{2,}/g, (w) => (ACRONYM_KEEP.has(w) ? w : w.toLowerCase()));
 }
 
 /** Parakeet 两个精度版本共享同一套语义：自带语种检测、不吃 language 设置、不识中文 */
