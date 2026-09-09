@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { LOCAL_MODEL_IDS, LOCAL_MODELS, STREAMING_ZIPFORMER } from "../shared/localModels";
+import { LOCAL_MODEL_IDS, LOCAL_MODELS, STREAMING_CAPTIONS } from "../shared/localModels";
 import { resolveCaptionFallback, shouldUseStreamingCaptions } from "./streaming-policy";
 
 const ON = { enabled: true, modelReady: true, workerHealthy: true, hasPartialSink: true };
@@ -47,7 +47,7 @@ describe("流式模型卡纯度", () => {
     // as const 字面量类型在编译期就会挡住混入，运行时断言兜底防止将来有人放宽 as const
     const ids = LOCAL_MODEL_IDS as string[];
     const catalog = LOCAL_MODELS.map((m) => m.id) as string[];
-    expect(catalog).not.toContain(STREAMING_ZIPFORMER);
-    expect(ids).not.toContain(STREAMING_ZIPFORMER);
+    expect(catalog).not.toContain(STREAMING_CAPTIONS);
+    expect(ids).not.toContain(STREAMING_CAPTIONS);
   });
 });

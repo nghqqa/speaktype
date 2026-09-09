@@ -7,7 +7,7 @@ import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { Worker } from "node:worker_threads";
 import log from "electron-log/main.js";
-import { FIRERED_CTC, LOCAL_MODELS, PARAKEET, PARAKEET_FP32, SENSEVOICE, STREAMING_ZIPFORMER, isFireRedModel, isParakeetModel, isSherpaModel } from "../shared/localModels";
+import { FIRERED_CTC, LOCAL_MODELS, PARAKEET, PARAKEET_FP32, SENSEVOICE, STREAMING_CAPTIONS, isFireRedModel, isParakeetModel, isSherpaModel } from "../shared/localModels";
 import type { LocalModelStatus } from "../shared/types";
 import { DownloadCancelled, downloadFiles, hfSources, partialProgress } from "./download";
 import { t } from "./i18n";
@@ -23,13 +23,13 @@ export { LOCAL_MODELS, PARAKEET, PARAKEET_FP32, SENSEVOICE, isFireRedModel, isPa
 
 /** 流式字幕模型是否已就绪（文件齐全且字节数吻合）；供 streaming-asr.ts 判定是否启用流式 */
 export function streamingModelReady(): boolean {
-  return modelReady(STREAMING_ZIPFORMER);
+  return modelReady(STREAMING_CAPTIONS);
 }
 
 /** 流式字幕模型的四个落盘路径（encoder/decoder/joiner/tokens），供流式 worker 加载 */
-export function streamingModelPaths(): { encoder: string; decoder: string; joiner: string; tokens: string } {
-  const files = modelFiles(STREAMING_ZIPFORMER).map(([, p]) => p);
-  return { encoder: files[0]!, decoder: files[1]!, joiner: files[2]!, tokens: files[3]! };
+export function streamingModelPaths(): { encoder: string; decoder: string; tokens: string } {
+  const files = modelFiles(STREAMING_CAPTIONS).map(([, p]) => p);
+  return { encoder: files[0]!, decoder: files[1]!, tokens: files[2]! };
 }
 
 const SENSEVOICE_BASE =
@@ -43,8 +43,8 @@ const PARAKEET_BASE =
 
 // 流式字幕模型（two-pass 的草稿半边）：下载/续传/删除复用同一套基建，但推理在
 // 独立的 streaming worker（见 streaming-asr.ts），不进本文件的离线 worker
-const STREAMING_ZIPFORMER_BASE =
-  "csukuangfj/sherpa-onnx-streaming-zipformer-zh-int8-2025-06-30/resolve/main";
+const STREAMING_CAPTIONS_BASE =
+  "csukuangfj/sherpa-onnx-streaming-paraformer-bilingual-zh-en/resolve/main";
 
 // fp32 版 encoder.onnx 只是图结构，权重在同目录的 encoder.weights 外部数据文件（onnx external data，
 // 加载时按相对路径自动找），四个文件必须落在同一目录
@@ -81,13 +81,12 @@ function modelFiles(model: string): Array<[string, string, number?]> {
       [`${FIRERED_CTC_BASE}/tokens.txt`, join(dir, "tokens.txt"), 79_172],
     ];
   }
-  if (model === STREAMING_ZIPFORMER) {
-    const dir = join(modelsDir(), STREAMING_ZIPFORMER);
+  if (model === STREAMING_CAPTIONS) {
+    const dir = join(modelsDir(), STREAMING_CAPTIONS);
     return [
-      [`${STREAMING_ZIPFORMER_BASE}/encoder.int8.onnx`, join(dir, "encoder.int8.onnx"), 161_141_793],
-      [`${STREAMING_ZIPFORMER_BASE}/decoder.onnx`, join(dir, "decoder.onnx"), 5_165_083],
-      [`${STREAMING_ZIPFORMER_BASE}/joiner.int8.onnx`, join(dir, "joiner.int8.onnx"), 1_033_416],
-      [`${STREAMING_ZIPFORMER_BASE}/tokens.txt`, join(dir, "tokens.txt"), 20_628],
+      [`${STREAMING_CAPTIONS_BASE}/encoder.int8.onnx`, join(dir, "encoder.int8.onnx"), 165_462_184],
+      [`${STREAMING_CAPTIONS_BASE}/decoder.int8.onnx`, join(dir, "decoder.int8.onnx"), 71_664_561],
+      [`${STREAMING_CAPTIONS_BASE}/tokens.txt`, join(dir, "tokens.txt"), 75_756],
     ];
   }
   if (model === PARAKEET) {
@@ -284,7 +283,7 @@ export function deleteLocalModel(model: string): LocalModelStatus {
     rmSync(`${dest}.part`, { force: true });
     rmSync(`${dest}.part.json`, { force: true });
   }
-  if (isSherpaModel(model) || model === STREAMING_ZIPFORMER) rmSync(join(modelsDir(), model), { recursive: true, force: true });
+  if (isSherpaModel(model) || model === STREAMING_CAPTIONS) rmSync(join(modelsDir(), model), { recursive: true, force: true });
   readyUntil.delete(model);
   lastError.delete(model);
   log.info(`local model ${model} deleted`);

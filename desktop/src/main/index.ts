@@ -27,7 +27,7 @@ import { t, translator } from "./i18n";
 import { testAsr } from "./asr";
 import { AVAILABLE_LOCAL_MODELS, cancelLocalModelDownload, deleteLocalModel, downloadLocalModel, isSherpaModel, localModelStatus, onLocalModelStatus, prewarmSherpa, releaseSherpaWorker, stopLocalServer, streamingModelReady } from "./localasr";
 import { prewarmStreamingCaptions, releaseStreamingWorker } from "./streaming-asr";
-import { STREAMING_ZIPFORMER } from "../shared/localModels";
+import { STREAMING_CAPTIONS } from "../shared/localModels";
 import { initMuteRecovery } from "./mute";
 import { downloadPunct, onPunctStatus, punctStatus } from "./punct";
 import { cancelTranscribe, onTranscribeState, startTranscribe, transcribeState } from "./transcribe";
@@ -462,7 +462,7 @@ function registerIpc(): void {
         prewarmSherpa(next.localModel, next.language);
       }
     }
-    // 流式字幕 worker（约 167MB 常驻）随开关联动：关即释放；开且本地识别、模型就绪才预热
+    // 流式字幕 worker（约 238MB 常驻）随开关联动：关即释放；开且本地识别、模型就绪才预热
     // （流式只服务本地通道的草稿字幕，云端 provider 开着也吃不到，别白驻内存）；
     // session 中途的开关变化不热切换（正在说的那句沿用旧方式），下一句自然生效
     if ("streamingCaptions" in patch) {
@@ -657,7 +657,7 @@ function registerIpc(): void {
         prewarmSherpa(model, s.language);
       }
       // 流式字幕模型下完即预热（本地识别且开关开着才有意义），第一句直接吃上流式草稿
-      if (model === STREAMING_ZIPFORMER && s.streamingCaptions && s.asrProvider === "local") prewarmStreamingCaptions();
+      if (model === STREAMING_CAPTIONS && s.streamingCaptions && s.asrProvider === "local") prewarmStreamingCaptions();
     }
     return result;
   });
@@ -667,7 +667,7 @@ function registerIpc(): void {
     releaseSherpaWorker();
     stopLocalServer();
     // 流式 worker 也持有模型文件句柄：删流式模型前同样要先释放
-    if (model === STREAMING_ZIPFORMER) releaseStreamingWorker();
+    if (model === STREAMING_CAPTIONS) releaseStreamingWorker();
     const result = deleteLocalModel(model);
     refreshTrayMenu();
     return result;
