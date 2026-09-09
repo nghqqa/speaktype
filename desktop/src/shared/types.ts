@@ -142,9 +142,9 @@ export interface UpdateInfo {
   portable: boolean;
   /** 安装包下载直链（GitHub API 的 browser_download_url，主进程自取自用不经渲染层） */
   url: string;
-  /** release 附带 SHA256SUMS.txt 时解析出的安装包 sha256，下载后校验完整性；
-   *  旧发布没有该资产则缺省（跳过校验，不视为错误） */
-  sha256?: string;
+  /** 安装包 sha256（取自 GitHub 资产元数据 digest，其次 release 的 SHA256SUMS.txt）；下载后与安装前各校验一次。
+   *  两处都拿不到的发布不提供应用内更新（关于页退回纯提示） */
+  sha256: string;
 }
 
 /** 应用内更新状态，主进程推给关于页；无进行中更新时为 null */
