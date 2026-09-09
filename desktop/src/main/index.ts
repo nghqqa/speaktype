@@ -38,8 +38,8 @@ import {
   latestReleaseTag,
   onUpdateState,
   updateState,
-  versionNewer,
 } from "./updater";
+import { versionNewer } from "../shared/compareVersions";
 import { testPolish } from "./polish";
 import {
   broadcastToPhones,

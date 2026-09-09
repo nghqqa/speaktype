@@ -6,6 +6,8 @@ import log from "electron-log/main.js";
 import pkg from "../../package.json";
 import { downloadFile, DownloadCancelled, hashFile, partialProgress } from "./download";
 import type { UpdateCheck, UpdateInfo, UpdateState } from "../shared/types";
+import { versionNewer } from "../shared/compareVersions";
+import { sha256FromDigest, sha256FromSums } from "../shared/sha256Sums";
 
 /**
  * 应用内更新：检查 GitHub latest release → 复用 download.ts 断点续传下载安装包（单源直链）
@@ -24,18 +26,6 @@ export const trustedUpdateHost = (hostname: string): boolean => TRUSTED_HOST.tes
 const CHECK_CACHE_MS = 10 * 60_000;
 /** 半开连接下 fetch 会永久挂起，与下载侧 stallGuard 的标准对齐给个超时 */
 const CHECK_TIMEOUT_MS = 15_000;
-
-/** 版本号比大小："v0.18.0" vs "0.17.2"，逐段数字比较（与关于页同名实现一致，主进程侧独立一份） */
-export function versionNewer(tag: string, current: string): boolean {
-  const parse = (v: string) => v.replace(/^v/, "").split(".").map(Number);
-  const [a, b] = [parse(tag), parse(current)];
-  for (let i = 0; i < Math.max(a.length, b.length); i++) {
-    const [x, y] = [a[i] ?? 0, b[i] ?? 0];
-    if (Number.isNaN(x) || Number.isNaN(y)) return false;
-    if (x !== y) return x > y;
-  }
-  return false;
-}
 
 /** dev 模式 app.getVersion() 返回 Electron 版本，与启动日志同款约定取 package.json 版本 */
 function currentVersion(): string {
@@ -91,12 +81,6 @@ export async function latestReleaseTag(): Promise<string> {
   return (await fetchLatestRelease()).tag_name ?? "";
 }
 
-/** 解析资产元数据的 digest 字段；形式不对（缺省/其他算法）返回 undefined */
-export function sha256FromDigest(digest: string | undefined): string | undefined {
-  const m = /^sha256:([0-9a-f]{64})$/i.exec(digest ?? "");
-  return m?.[1]?.toLowerCase();
-}
-
 /**
  * 按 tag 记住已解析过的安装目标（含「该版本拿不到哈希」的否定结论，同样只保留 CHECK_CACHE_MS，SHA256SUMS.txt 临时拉不到不至于整会话无法重试）；
  * release 元数据本身的缓存见 fetchLatestRelease
@@ -120,15 +104,7 @@ function pruneOldInstallers(keep: string): void {
   }
 }
 
-/** 从 release 的 SHA256SUMS.txt 文本里取指定文件的 sha256（sha256sum 格式：`<hash>␣␣<文件名>`）。
- *  大写哈希也收（PowerShell Get-FileHash 产出大写），统一转小写与 hashFile 摘要比对 */
-function sha256FromSums(text: string, fileName: string): string | undefined {
-  for (const line of text.split("\n")) {
-    const m = /^([0-9a-f]{64})\s+\*?(.+?)\s*$/i.exec(line);
-    if (m && (m[2] === fileName || m[2]?.endsWith(`/${fileName}`))) return m[1]!.toLowerCase();
-  }
-  return undefined;
-}
+/** 从 release 的 SHA256SUMS.txt 文本里取指定文件的 sha256 与资产元数据 digest 的解析都在 shared/sha256Sums.ts（带单测） */
 
 /**
  * 检查更新：四态给关于页——有新版可应用内更新 / 有新版但只能去 Releases（mac、便携以外的无哈希发布、无安装包资产）/
