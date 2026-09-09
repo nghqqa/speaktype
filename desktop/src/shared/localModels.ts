@@ -14,14 +14,15 @@ export const FIRERED_CTC = "fire-red-asr2-ctc-zh-en-int8";
 export const PARAKEET = "parakeet-tdt-0.6b-v3";
 
 /**
- * 流式字幕模型（sherpa-onnx streaming zipformer 中文 int8，四件套共约 167MB）。
+ * 流式字幕模型（sherpa-onnx streaming paraformer 中英双语 int8，三件套共约 238MB）。
  * 只服务录音中的草稿字幕（two-pass 的「看」半边），不参与落字终稿——
  * 因此刻意不进 LOCAL_MODELS：不得出现在转写模型下拉与 LOCAL_MODEL_IDS 校验里。
- * 模型选型：2023 双语版实测中文严重叠字（张江→张江江、园区→园园园，TTS/方言/真人
- * 三类素材一致复现），2025 中文版同类素材零叠字；英文单词不识别属纯中文模型的
- * 已知边界，草稿层可接受（终稿由用户选中的双语离线模型出）。
+ * 模型选型（同类素材 A/B：TTS 专有名词句/混英句/四川话）：2023 双语 zipformer 中文
+ * 病理性叠字（张江→张江江），否决；2025 中文 zipformer 中文零叠字但英文全乱；
+ * paraformer 双语中文仅零星错字（张江→张将）且 report/email 等英文单词全对、
+ * RTF 0.055 三者最快——草稿层的双语诉求与中文可读性兼得。
  */
-export const STREAMING_ZIPFORMER = "streaming-zipformer-zh-2025-06-30";
+export const STREAMING_CAPTIONS = "streaming-paraformer-zh-en";
 
 /**
  * 同一 Parakeet 的 fp32 原精度版：int8 量化在个别首词（如 "Please"→"Ple"）处于判定边界会吞字

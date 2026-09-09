@@ -10,7 +10,7 @@ import { streamingModelPaths, streamingModelReady } from "./localasr";
  * 每 200ms 帧到达时解码一点，RTF 0.1 级别，不需要也不该复用整句重解的离线 worker。
  *
  * 生命周期对齐 localasr.ts 的既有约定：模型常驻、session 级 stream、10min 空闲回收、
- * 关开关/删模型立即释放、启动后空闲预热把 ~167MB 冷加载移出用户第一句。
+ * 关开关/删模型立即释放、启动后空闲预热把 ~238MB 冷加载移出用户第一句。
  * worker 加载期间的帧由 session 缓存、ready 后补喂——草稿从音频头部开始不丢第一句。
  */
 
@@ -20,7 +20,7 @@ const WORKER_IDLE_MS = 10 * 60_000;
 // 松手后流式收尾（inputFinished + 排空解码）通常毫秒级；超时视为流式侧故障，
 // 终稿路径不受影响（草稿只用于字幕展示与终稿失败时的兜底）
 const FINISH_TIMEOUT_MS = 2_000;
-// worker 启动含 ~167MB 模型 ONNX 冷加载，慢盘上要几秒；一直等不到 ready 判启动
+// worker 启动含 ~238MB 模型 ONNX 冷加载，慢盘上要几秒；一直等不到 ready 判启动
 // 失败回收，本 session 降级。下一个 session 会重新尝试拉起（自愈，不永久失效）
 const READY_TIMEOUT_MS = 30_000;
 // partial 上报节流：文本有变化时也至多 300ms 一拍，避免高频 IPC 刷面板
@@ -44,7 +44,7 @@ const t0 = Date.now();
 // P1 用默认 greedy_search（快），modified_beam_search + 热词属 P2
 const rec = new mod.OnlineRecognizer({
   modelConfig: {
-    transducer: { encoder: workerData.encoder, decoder: workerData.decoder, joiner: workerData.joiner },
+    paraformer: { encoder: workerData.encoder, decoder: workerData.decoder },
     tokens: workerData.tokens,
     numThreads: 2,
     provider: "cpu",
@@ -267,7 +267,6 @@ function spawnWorker(): boolean {
       modulePath: require.resolve("sherpa-onnx-node"),
       encoder: paths.encoder,
       decoder: paths.decoder,
-      joiner: paths.joiner,
       tokens: paths.tokens,
     },
   });
@@ -298,7 +297,7 @@ export function streamingWorkerHealthy(): boolean {
   return worker === null || workerReady;
 }
 
-/** 关开关/删模型时立即释放（约 167MB 常驻，对齐 releaseSherpaWorker 语义） */
+/** 关开关/删模型时立即释放（约 238MB 常驻，对齐 releaseSherpaWorker 语义） */
 export function releaseStreamingWorker(): void {
   if (idleTimer) {
     clearTimeout(idleTimer);
@@ -309,7 +308,7 @@ export function releaseStreamingWorker(): void {
 
 /**
  * 启动后空闲预热：开关开且模型就绪时把 worker 拉起来（识别器在 worker 启动时同步
- * 加载，无需喂静音），用户第一句不再等 ~167MB 冷加载。
+ * 加载，无需喂静音），用户第一句不再等 ~238MB 冷加载。
  */
 export function prewarmStreamingCaptions(): void {
   if (worker || !streamingModelReady()) return;

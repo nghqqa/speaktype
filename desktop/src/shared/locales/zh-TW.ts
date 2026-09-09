@@ -304,7 +304,7 @@ export const zhTW: LocaleDict = {
   "settings.captionLines": "懸浮條字幕高度",
   "settings.captionLinesHint": "即時字幕最多顯示的行數，超出自動滾動到最新。",
   "settings.streamingCaptions": "即時字幕（流式模型）",
-  "settings.streamingCaptionsHint": "聽寫時由獨立流式模型逐字生成草稿字幕，鬆手後仍用目前模型出終稿。需先下載約 167MB 的流式模型，未就緒時自動回退現有字幕方式。僅本地辨識時生效。",
+  "settings.streamingCaptionsHint": "聽寫時由獨立流式模型逐字生成草稿字幕，鬆手後仍用目前模型出終稿。需先下載約 238MB 的流式模型，未就緒時自動回退現有字幕方式。僅本地辨識時生效。",
   "settings.streamingCaptionsModel": "流式字幕模型",
   "settings.streamingCaptionsNotReady": "開關已開但模型未就緒：聽寫暫用現有字幕方式（部分模型無即時字幕）。",
   "settings.captionLinesOption": "{{n}} 行",

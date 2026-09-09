@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { api } from "../../api";
 import type { Translator } from "../../i18n";
 import { UI_LANGUAGES } from "../../../../shared/i18n";
-import { STREAMING_ZIPFORMER } from "../../../../shared/localModels";
+import { STREAMING_CAPTIONS } from "../../../../shared/localModels";
 import type { Settings } from "../../../../shared/types";
 import { EnhancedVad } from "../../components/EnhancedVad";
 import { Row } from "../../components/Row";
@@ -25,7 +25,7 @@ function GeneralTab(props: {
   const confirmReset = reset.armed;
   // 流式字幕模型是百 MB 级不可逆删除：独立的两步确认（超时自动复位见 useConfirm）
   const streamDel = useConfirm();
-  const [streamModel, setStreamModel] = useLocalModelStatus(STREAMING_ZIPFORMER);
+  const [streamModel, setStreamModel] = useLocalModelStatus(STREAMING_CAPTIONS);
   // 导出/导入结果提示，几秒后自动消失
   // 存 key/参数而非成品字符串：导入切换界面语言时，提示跟随当前语言重新翻译
   const [backupMsg, setBackupMsg] = useState<{
@@ -314,7 +314,7 @@ function GeneralTab(props: {
                       ? "border-red-200 bg-red-50 font-medium text-red-500 hover:bg-red-100"
                       : "border-slate-200 text-slate-500 hover:bg-slate-50"
                   }`}
-                  onClick={() => streamDel.press(true, () => void api.localModelDelete(STREAMING_ZIPFORMER).then(setStreamModel))}
+                  onClick={() => streamDel.press(true, () => void api.localModelDelete(STREAMING_CAPTIONS).then(setStreamModel))}
                 >
                   {streamDel.armed ? t("settings.localModelDeleteConfirm") : t("settings.localModelDelete")}
                 </button>
@@ -324,7 +324,7 @@ function GeneralTab(props: {
                 <button
                   className="rounded-xl bg-slate-900 px-4 py-2 text-sm text-white disabled:opacity-40"
                   disabled={Boolean(streamModel.downloading || streamModel.busyModel)}
-                  onClick={() => void api.localModelDownload(STREAMING_ZIPFORMER).then(setStreamModel)}
+                  onClick={() => void api.localModelDownload(STREAMING_CAPTIONS).then(setStreamModel)}
                 >
                   {streamModel.downloading
                     ? downloadingLabel(streamModel, t)
