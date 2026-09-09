@@ -2,11 +2,14 @@ import { useEffect, useState } from "react";
 import { api } from "../../api";
 import type { Translator } from "../../i18n";
 import { UI_LANGUAGES } from "../../../../shared/i18n";
+import { STREAMING_ZIPFORMER } from "../../../../shared/localModels";
 import type { Settings } from "../../../../shared/types";
 import { EnhancedVad } from "../../components/EnhancedVad";
 import { Row } from "../../components/Row";
 import { Toggle } from "../../components/Toggle";
+import { downloadPhaseText, downloadingLabel, humanDownloadError } from "../../lib/downloadError";
 import { useConfirm } from "../../lib/useConfirm";
+import { useLocalModelStatus } from "../../lib/useLocalModelStatus";
 
 function GeneralTab(props: {
   t: Translator;
@@ -20,6 +23,9 @@ function GeneralTab(props: {
   // 两个重置均不可逆：两步确认
   const reset = useConfirm<"settings" | "all">();
   const confirmReset = reset.armed;
+  // 流式字幕模型是百 MB 级不可逆删除：独立的两步确认（超时自动复位见 useConfirm）
+  const streamDel = useConfirm();
+  const [streamModel, setStreamModel] = useLocalModelStatus(STREAMING_ZIPFORMER);
   // 导出/导入结果提示，几秒后自动消失
   // 存 key/参数而非成品字符串：导入切换界面语言时，提示跟随当前语言重新翻译
   const [backupMsg, setBackupMsg] = useState<{
@@ -288,6 +294,71 @@ function GeneralTab(props: {
               </option>
             ))}
           </select>
+        </Row>
+        <Toggle
+          label={t("settings.streamingCaptions")}
+          hint={t("settings.streamingCaptionsHint")}
+          value={s.streamingCaptions === true}
+          onChange={(v) => update({ streamingCaptions: v })}
+        />
+        <Row label={t("settings.streamingCaptionsModel")} hint={s.streamingCaptions && !streamModel?.downloaded ? t("settings.streamingCaptionsNotReady") : undefined}>
+          <div className="flex flex-wrap items-center justify-end gap-3">
+            {!streamModel ? (
+              <span className="text-sm text-slate-400">…</span>
+            ) : streamModel.downloaded ? (
+              <>
+                <span className="text-sm text-emerald-600">{t("settings.localModelReady")}</span>
+                <button
+                  className={`rounded-xl border px-4 py-2 text-sm ${
+                    streamDel.armed
+                      ? "border-red-200 bg-red-50 font-medium text-red-500 hover:bg-red-100"
+                      : "border-slate-200 text-slate-500 hover:bg-slate-50"
+                  }`}
+                  onClick={() => streamDel.press(true, () => void api.localModelDelete(STREAMING_ZIPFORMER).then(setStreamModel))}
+                >
+                  {streamDel.armed ? t("settings.localModelDeleteConfirm") : t("settings.localModelDelete")}
+                </button>
+              </>
+            ) : (
+              <>
+                <button
+                  className="rounded-xl bg-slate-900 px-4 py-2 text-sm text-white disabled:opacity-40"
+                  disabled={Boolean(streamModel.downloading || streamModel.busyModel)}
+                  onClick={() => void api.localModelDownload(STREAMING_ZIPFORMER).then(setStreamModel)}
+                >
+                  {streamModel.downloading
+                    ? downloadingLabel(streamModel, t)
+                    : streamModel.partial != null
+                      ? t("settings.localModelResume", { progress: String(streamModel.partial) })
+                      : t("settings.localModelDownload")}
+                </button>
+                {streamModel.downloading && (
+                  <>
+                    <div className="h-1.5 w-40 overflow-hidden rounded-full bg-slate-100">
+                      <div className="h-full rounded-full bg-indigo-400" style={{ width: `${streamModel.progress}%` }} />
+                    </div>
+                    <button
+                      className="rounded-xl border border-slate-200 px-4 py-2 text-sm text-slate-500 hover:bg-slate-50"
+                      onClick={() => void api.localModelCancelDownload()}
+                    >
+                      {t("common.cancel")}
+                    </button>
+                    {downloadPhaseText(streamModel, t) && (
+                      <span className="text-sm text-slate-400" role="status">
+                        {downloadPhaseText(streamModel, t)}
+                      </span>
+                    )}
+                  </>
+                )}
+                {streamModel.busyModel && !streamModel.downloading && (
+                  <span className="text-sm text-slate-400">
+                    {t("settings.localModelBusy", { model: streamModel.busyModel })}
+                  </span>
+                )}
+                {streamModel.error && <span className="text-sm text-red-500">{humanDownloadError(streamModel.error, t)}</span>}
+              </>
+            )}
+          </div>
         </Row>
         <Row label={t("settings.uiLanguage")} hint={t("settings.uiLanguageHint")}>
           <select

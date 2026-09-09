@@ -59,6 +59,7 @@ export const DEFAULT_SETTINGS: Settings = {
   doubleTapHandsFree: true,
   keepFailedAudio: true,
   captionLines: 3,
+  streamingCaptions: false,
   remoteMicEnabled: false,
   remoteMicMode: "lan",
   // 官方公共中转（Cloudflare Worker，音频直通不存储）；用户可换成自部署地址
@@ -324,6 +325,11 @@ export function parseConfigImport(
   // captionLines 值域外的数会持久化但 UI 下拉无对应项，显示与存储不一致：非法值不导入
   if (patch.captionLines !== undefined && ![1, 3, 6].includes(patch.captionLines)) {
     delete patch.captionLines;
+    ignored++;
+  }
+  // streamingCaptions 只认布尔：非布尔（含 0/1 数字惯用误写）一律不导入，保留默认关
+  if (patch.streamingCaptions !== undefined && typeof patch.streamingCaptions !== "boolean") {
+    delete patch.streamingCaptions;
     ignored++;
   }
   if (patch.paragraphBreakMs !== undefined && ![2000, 3000, 4000, 6000, 8000].includes(patch.paragraphBreakMs)) {

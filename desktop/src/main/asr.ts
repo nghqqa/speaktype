@@ -4,7 +4,9 @@ import { simplifyWhisperOutput } from "../shared/zhNorm";
 import type { DoubaoSession } from "./doubao";
 import { t } from "./i18n";
 import { transcribeViaChatgpt } from "./chatgpt";
-import { ensureLocalServer, isFireRedModel, isSherpaModel, transcribeSherpa, whisperLanguage } from "./localasr";
+import { ensureLocalServer, isFireRedModel, isSherpaModel, streamingModelReady, transcribeSherpa, whisperLanguage } from "./localasr";
+import { startStreamingCaptions, streamingWorkerHealthy } from "./streaming-asr";
+import { resolveCaptionFallback, shouldUseStreamingCaptions, type FinalOutcome } from "./streaming-policy";
 
 const SAMPLE_RATE = 16000;
 // 离线流式字幕：每 1s 重解一次已录音频，1s 起步；超过 20s 后改解最后 20s 滑窗，成本恒定、字幕不断供
@@ -210,12 +212,24 @@ export function startLocalAsrSession(
   // 抢跑：录音一开始就把本地 server 拉起来，松手时通常已就绪
   if (!isSherpaModel(model)) ensureLocalServer(model).catch(() => undefined);
 
+  // 真流式草稿字幕（two-pass 的「看」半边）：开关开且流式模型就绪时，帧增量喂给独立的
+  // 流式 worker 逐字上屏，与终稿模型类型无关（FireRed 终稿也因此有草稿字幕）。
+  // 任何流式侧故障只降级不报错；开关/模型状态在 session 中途变化不热切换，下一 session 生效
+  const streaming = shouldUseStreamingCaptions({
+    enabled: settings.streamingCaptions === true,
+    modelReady: streamingModelReady(),
+    workerHealthy: streamingWorkerHealthy(),
+    hasPartialSink: !!onPartial,
+  })
+    ? startStreamingCaptions(onPartial!)
+    : null;
+
   // 流式字幕的浮点音频增量维护：帧到达时转换一次，预览 tick 只拼装尾部滑窗。
   // 此前每个 tick 都对整段录音重新 pcmToFloat32，转换量随录音时长线性增长（免按长句
   // 时主进程每秒白转数 MB 采样）；最终整句识别仍由 finish() 用完整 frames 转换
-  // FireRedASR 不出实时字幕：RTF 约 0.3，20s 滑窗单次重解要 6s，字幕会冻结；且预览
+  // FireRedASR 不出（滑窗）实时字幕：RTF 约 0.3，20s 滑窗单次重解要 6s，字幕会冻结；且预览
   // 与最终识别共用 worker 串行队列，在飞的预览会顶住松手后的最终解码，得不偿失
-  const wantPartials = !!onPartial && isSherpaModel(model) && !isFireRedModel(model);
+  const wantPartials = !!onPartial && isSherpaModel(model) && !isFireRedModel(model) && !streaming;
   const floatChunks: Float32Array[] = [];
   let floatSamples = 0;
   const appendFloatChunk = (frame: Int16Array): void => {
@@ -270,11 +284,13 @@ export function startLocalAsrSession(
     pushPcm(frame: Int16Array): void {
       if (cancelled) return;
       frames.push(frame);
+      if (streaming) streaming.push(frame);
       if (wantPartials) appendFloatChunk(frame);
     },
     cancel(): void {
       cancelled = true;
       stopTimer();
+      streaming?.discard();
       frames.length = 0;
       floatChunks.length = 0;
       floatSamples = 0;
@@ -282,24 +298,47 @@ export function startLocalAsrSession(
     },
     async finish(): Promise<string> {
       stopTimer();
-      if (cancelled || frames.length === 0) return "";
-      if (isSherpaModel(model)) {
-        // sherpa 系直接出最终文本，不再过繁→简以免误伤专名
-        return transcribeSherpa(model, pcmToFloat32(frames), SAMPLE_RATE, settings.language || "auto");
+      // 流式收尾与终稿解码并行：finish() 先发（毫秒级收尾+2s 超时兜底），
+      // 终稿照常跑完整质量管线；只有终稿失败且草稿非空时草稿才顶上落字
+      const streamingFinal = streaming ? streaming.finish() : Promise.resolve(null);
+      if (cancelled || frames.length === 0) {
+        streaming?.discard();
+        await streamingFinal;
+        return "";
       }
-      const url = await abortable(ensureLocalServer(model), finishAbort.signal);
-      const wav = pcmToWav(frames);
-      const form = new FormData();
-      form.append("file", new Blob([new Uint8Array(wav)], { type: "audio/wav" }), "speech.wav");
-      form.append("response_format", "json");
-      if (settings.language && settings.language !== "auto") form.append("language", whisperLanguage(settings.language));
-      const res = await fetch(url, { method: "POST", body: form, signal: finishAbort.signal });
-      if (!res.ok) {
-        const body = (await res.text()).slice(0, 160);
-        throw new Error(`Local ASR HTTP ${res.status} ${body}`);
+      // 终稿路径原样搬运（sherpa 整句 / whisper-server），只在外面包一层兜底判定
+      const runFinal = async (): Promise<string> => {
+        if (isSherpaModel(model)) {
+          // sherpa 系直接出最终文本，不再过繁→简以免误伤专名
+          return transcribeSherpa(model, pcmToFloat32(frames), SAMPLE_RATE, settings.language || "auto");
+        }
+        const url = await abortable(ensureLocalServer(model), finishAbort.signal);
+        const wav = pcmToWav(frames);
+        const form = new FormData();
+        form.append("file", new Blob([new Uint8Array(wav)], { type: "audio/wav" }), "speech.wav");
+        form.append("response_format", "json");
+        if (settings.language && settings.language !== "auto") form.append("language", whisperLanguage(settings.language));
+        const res = await fetch(url, { method: "POST", body: form, signal: finishAbort.signal });
+        if (!res.ok) {
+          const body = (await res.text()).slice(0, 160);
+          throw new Error(`Local ASR HTTP ${res.status} ${body}`);
+        }
+        const data = (await res.json()) as TranscriptionResponse;
+        return finalizeWhisperText((data.text ?? "").trim(), settings);
+      };
+      const outcome: FinalOutcome = await runFinal().then(
+        (text): FinalOutcome => ({ ok: true, text }),
+        (error): FinalOutcome => ({ ok: false, error }),
+      );
+      const draft = await streamingFinal;
+      const resolved = resolveCaptionFallback(outcome, draft);
+      if (resolved.ok) {
+        // 草稿只进了字幕；这里留一条 debug 便于线上对比两遍一致性，正常路径不刷 info
+        if (!outcome.ok) log.warn("final ASR failed, landing streaming draft instead", outcome.error);
+        else if (draft) log.debug(`streaming draft consistent check: ${draft.slice(0, 60)}`);
+        return resolved.text;
       }
-      const data = (await res.json()) as TranscriptionResponse;
-      return finalizeWhisperText((data.text ?? "").trim(), settings);
+      throw resolved.error;
     },
   };
 }
