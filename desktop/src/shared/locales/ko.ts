@@ -320,7 +320,7 @@ export const ko: LocaleDict = {
   "settings.captionLines": "자막 높이",
   "settings.captionLinesHint": "플로팅 바 실시간 자막의 최대 줄 수. 초과 시 최신 내용으로 스크롤됩니다.",
   "settings.streamingCaptions": "실시간 자막(스트리밍 모델)",
-  "settings.streamingCaptionsHint": "받아쓰기 중 별도의 스트리밍 모델이 한 글자씩 초안 자막을 만들고, 손을 뗀 후 최종 텍스트는 현재 선택한 모델로 출력됩니다. 약 167MB 모델을 한 번 받아야 하며, 준비될 때까지는 기존 자막 방식으로 자동 대체됩니다.",
+  "settings.streamingCaptionsHint": "받아쓰기 중 별도의 스트리밍 모델이 한 글자씩 초안 자막을 만들고, 손을 뗀 후 최종 텍스트는 현재 선택한 모델로 출력됩니다. 약 167MB 모델을 한 번 받아야 하며, 준비될 때까지는 기존 자막 방식으로 자동 대체됩니다. 기본 제공 오프라인 인식 사용 시에만 적용됩니다.",
   "settings.streamingCaptionsModel": "스트리밍 자막 모델",
   "settings.streamingCaptionsNotReady": "스위치는 켜져 있지만 모델이 준비되지 않았습니다. 당분간 기존 자막 방식을 사용합니다(일부 모델은 실시간 자막 없음).",
   "settings.captionLinesOption": "{{n}} 줄",

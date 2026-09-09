@@ -320,7 +320,7 @@ export const ja: LocaleDict = {
   "settings.captionLines": "字幕の高さ",
   "settings.captionLinesHint": "フローティングバーのリアルタイム字幕の最大行数。超えると最新にスクロールします。",
   "settings.streamingCaptions": "リアルタイム字幕（ストリーミングモデル）",
-  "settings.streamingCaptionsHint": "ディクテーション中は独立したストリーミングモデルが逐次草稿字幕を生成し、話し終えた後の確定テキストは現在選択中のモデルから出力されます。約 167MB のモデルのダウンロードが必要で、準備済みになるまで既存の字幕方式に自動で戻ります。",
+  "settings.streamingCaptionsHint": "ディクテーション中は独立したストリーミングモデルが逐次草稿字幕を生成し、話し終えた後の確定テキストは現在選択中のモデルから出力されます。約 167MB のモデルのダウンロードが必要で、準備済みになるまで既存の字幕方式に自動で戻ります。内蔵オフライン認識のときのみ有効です。",
   "settings.streamingCaptionsModel": "ストリーミング字幕モデル",
   "settings.streamingCaptionsNotReady": "スイッチはオンですがモデル未準備：当面は既存の字幕方式を使用します（モデルによってはリアルタイム字幕なし）。",
   "settings.captionLinesOption": "{{n}} 行",

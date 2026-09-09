@@ -330,12 +330,20 @@ export function startLocalAsrSession(
         (text): FinalOutcome => ({ ok: true, text }),
         (error): FinalOutcome => ({ ok: false, error }),
       );
+      if (outcome.ok) {
+        // 终稿成功即落字，不等流式收尾（正常毫秒级，但流式侧卡住时不该反过来拖住落字）；
+        // 草稿只作异步一致性日志
+        if (streaming) {
+          void streamingFinal.then((d) => {
+            if (d) log.debug(`streaming draft consistent check: ${d.slice(0, 60)}`);
+          });
+        }
+        return outcome.text;
+      }
       const draft = await streamingFinal;
       const resolved = resolveCaptionFallback(outcome, draft);
       if (resolved.ok) {
-        // 草稿只进了字幕；这里留一条 debug 便于线上对比两遍一致性，正常路径不刷 info
-        if (!outcome.ok) log.warn("final ASR failed, landing streaming draft instead", outcome.error);
-        else if (draft) log.debug(`streaming draft consistent check: ${draft.slice(0, 60)}`);
+        log.warn("final ASR failed, landing streaming draft instead", outcome.error);
         return resolved.text;
       }
       throw resolved.error;
