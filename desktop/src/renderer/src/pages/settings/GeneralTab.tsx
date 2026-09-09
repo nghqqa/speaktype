@@ -270,6 +270,12 @@ function GeneralTab(props: {
           value={s.keepFailedAudio}
           onChange={(v) => update({ keepFailedAudio: v })}
         />
+        <Toggle
+          label={t("settings.autoUpdateCheck")}
+          hint={t("settings.autoUpdateCheckHint")}
+          value={s.autoUpdateCheck}
+          onChange={(v) => update({ autoUpdateCheck: v })}
+        />
         <Row label={t("settings.captionLines")} hint={t("settings.captionLinesHint")}>
           <select
             className="rounded-xl border border-slate-200 px-3 py-1.5 text-sm"

@@ -67,6 +67,7 @@ export const DEFAULT_SETTINGS: Settings = {
   appPersonas: [],
   autoLearn: true,
   learnInaccessibleDismissed: false,
+  autoUpdateCheck: true,
 };
 
 export interface WindowBounds {

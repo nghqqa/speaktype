@@ -81,7 +81,9 @@ function SettingsPage(props: {
           />
         )}
         {tab === "model" && <ModelTab t={t} s={s} update={props.update} />}
-        {tab === "about" && <AboutTab t={t} version={props.version} commit={props.commit} />}
+        {tab === "about" && (
+          <AboutTab t={t} version={props.version} commit={props.commit} autoUpdateCheck={s.autoUpdateCheck} />
+        )}
       </div>
     </div>
   );
