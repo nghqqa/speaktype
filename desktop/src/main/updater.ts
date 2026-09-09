@@ -5,7 +5,7 @@ import { app, shell } from "electron";
 import log from "electron-log/main.js";
 import pkg from "../../package.json";
 import { downloadFile, DownloadCancelled, hashFile, partialProgress } from "./download";
-import type { UpdateInfo, UpdateState } from "../shared/types";
+import type { UpdateCheck, UpdateInfo, UpdateState } from "../shared/types";
 
 /**
  * 应用内更新：检查 GitHub latest release → 复用 download.ts 断点续传下载安装包（单源直链）
@@ -50,13 +50,58 @@ interface ReleaseAsset {
   digest?: string;
 }
 
+interface Release {
+  tag_name?: string;
+  assets?: ReleaseAsset[];
+}
+
+/** release tag 只认 v?主.次.补丁：其他字符串（API 异常/恶意内容）不进入版本比较与界面 */
+const TAG_RE = /^v?\d+\.\d+\.\d+$/;
+
+let releaseCache: { at: number; release: Release } | null = null;
+let releaseInflight: Promise<Release> | null = null;
+
+/**
+ * 拉 latest release 元数据：关于页检查与启动新版提示共用这一份（同一时刻只发一个请求、结果缓存 10 分钟），
+ * 匿名 API 限额 60 次/时/IP，共享出口 IP 下每省一次都算
+ */
+export function fetchLatestRelease(): Promise<Release> {
+  if (releaseCache && Date.now() - releaseCache.at < CHECK_CACHE_MS) return Promise.resolve(releaseCache.release);
+  if (releaseInflight) return releaseInflight;
+  releaseInflight = (async () => {
+    try {
+      const res = await fetch(RELEASE_API, {
+        headers: { accept: "application/vnd.github+json" },
+        signal: AbortSignal.timeout(CHECK_TIMEOUT_MS),
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const release = (await res.json()) as Release;
+      if (!TAG_RE.test(release.tag_name ?? "")) throw new Error(`unexpected tag ${JSON.stringify(release.tag_name)}`);
+      releaseCache = { at: Date.now(), release };
+      return release;
+    } finally {
+      releaseInflight = null;
+    }
+  })();
+  return releaseInflight;
+}
+
+/** 最新版 tag（如 "v0.19.0"）；网络失败抛错，由调用方决定重试/静默 */
+export async function latestReleaseTag(): Promise<string> {
+  return (await fetchLatestRelease()).tag_name ?? "";
+}
+
 /** 解析资产元数据的 digest 字段；形式不对（缺省/其他算法）返回 undefined */
 export function sha256FromDigest(digest: string | undefined): string | undefined {
   const m = /^sha256:([0-9a-f]{64})$/i.exec(digest ?? "");
   return m?.[1]?.toLowerCase();
 }
 
-let cached: { at: number; info: UpdateInfo | null } | null = null;
+/**
+ * 按 tag 记住已解析过的安装目标（含「该版本拿不到哈希」的否定结论，同样只保留 CHECK_CACHE_MS，SHA256SUMS.txt 临时拉不到不至于整会话无法重试）；
+ * release 元数据本身的缓存见 fetchLatestRelease
+ */
+let cached: { at: number; tag: string; info: UpdateInfo | null } | null = null;
 
 function updateDir(): string {
   return join(app.getPath("userData"), "updates");
@@ -85,66 +130,67 @@ function sha256FromSums(text: string, fileName: string): string | undefined {
   return undefined;
 }
 
-/** 检查更新：仅 Windows；返回 null = 无新版/不支持。portable 版没有安装器语义，由 UI 换成「打开所在文件夹」 */
-export async function checkUpdate(): Promise<UpdateInfo | null> {
-  if (process.platform !== "win32") return null;
-  if (cached && Date.now() - cached.at < CHECK_CACHE_MS) {
+/**
+ * 检查更新：四态给关于页——有新版可应用内更新 / 有新版但只能去 Releases（mac、便携以外的无哈希发布、无安装包资产）/
+ * 已是最新 / 检查失败。应用内更新仅 Windows；portable 版没有安装器语义，由 UI 换成「打开所在文件夹」
+ */
+export async function checkUpdate(): Promise<UpdateCheck> {
+  let release: Release;
+  try {
+    release = await fetchLatestRelease();
+  } catch (error) {
+    // 检查失败不弹窗：关于页显示可重试的失败态，这里记日志即可
+    log.warn("update check failed", error);
+    return { status: "failed", error: error instanceof Error ? error.message : String(error) };
+  }
+  const tag = release.tag_name ?? "";
+  if (!versionNewer(tag, currentVersion())) return { status: "upToDate", tag };
+  if (process.platform !== "win32") return { status: "releaseOnly", tag };
+  if (cached && cached.tag === tag && Date.now() - cached.at < CHECK_CACHE_MS) {
     if (cached.info) {
       currentInfo = cached.info;
       pruneOldInstallers(cached.info.fileName);
+      return { status: "available", info: cached.info };
     }
-    return cached.info;
+    return { status: "releaseOnly", tag };
   }
-  try {
-    const res = await fetch(RELEASE_API, {
-      headers: { accept: "application/vnd.github+json" },
-      signal: AbortSignal.timeout(CHECK_TIMEOUT_MS),
-    });
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const release = (await res.json()) as { tag_name?: string; assets?: ReleaseAsset[] };
-    const tag = release.tag_name ?? "";
-    const asset = release.assets?.find((a) => /^SpeakType-Setup-.*\.exe$/.test(a.name));
-    if (!tag || !asset || !versionNewer(tag, currentVersion())) {
-      cached = { at: Date.now(), info: null };
-      return null;
-    }
-    // 安装包哈希首选 API 资产元数据的 digest（与下载链路分离，改不了正文的人也改不了它），
-    // 次选 release 里的 SHA256SUMS.txt；两者都拿不到则不提供应用内更新（fail-closed），
-    // 关于页退回「有新版 → Releases」的纯提示——不校验就执行的安装包不应该存在
-    let sha256 = sha256FromDigest(asset.digest);
-    const sumsAsset = release.assets?.find((a) => a.name === "SHA256SUMS.txt");
-    if (!sha256 && sumsAsset) {
-      try {
-        const sums = await fetch(sumsAsset.browser_download_url, { signal: AbortSignal.timeout(CHECK_TIMEOUT_MS) });
-        // 非 2xx 与网络异常同样要留排障线索：将来「为什么没校验」的追问里这是半边证据
-        if (sums.ok) sha256 = sha256FromSums(await sums.text(), asset.name);
-        else log.warn(`update sums fetch HTTP ${sums.status}`);
-      } catch (error) {
-        log.warn("update sums fetch failed", error);
-      }
-    }
-    if (!sha256) {
-      log.warn(`update ${tag}: no sha256 for ${asset.name} (asset digest / SHA256SUMS.txt), in-app update disabled`);
-      cached = { at: Date.now(), info: null };
-      return null;
-    }
-    const info: UpdateInfo = {
-      tag,
-      size: asset.size,
-      fileName: asset.name,
-      portable: !!process.env.PORTABLE_EXECUTABLE_DIR,
-      url: asset.browser_download_url,
-      sha256,
-    };
-    cached = { at: Date.now(), info };
-    currentInfo = info;
-    pruneOldInstallers(asset.name);
-    return info;
-  } catch (error) {
-    // 检查失败不弹窗：关于页按钮上会显示可重试的失败态，这里静默记日志即可
-    log.warn("update check failed", error);
-    return null;
+  const asset = release.assets?.find((a) => /^SpeakType-Setup-.*\.exe$/.test(a.name));
+  if (!asset) {
+    cached = { at: Date.now(), tag, info: null };
+    return { status: "releaseOnly", tag };
   }
+  // 安装包哈希首选 API 资产元数据的 digest（与下载链路分离，改不了正文的人也改不了它），
+  // 次选 release 里的 SHA256SUMS.txt；两者都拿不到则不提供应用内更新（fail-closed），
+  // 关于页退回「有新版 → Releases」的纯提示——不校验就执行的安装包不应该存在
+  let sha256 = sha256FromDigest(asset.digest);
+  const sumsAsset = release.assets?.find((a) => a.name === "SHA256SUMS.txt");
+  if (!sha256 && sumsAsset) {
+    try {
+      const sums = await fetch(sumsAsset.browser_download_url, { signal: AbortSignal.timeout(CHECK_TIMEOUT_MS) });
+      // 非 2xx 与网络异常同样要留排障线索：将来「为什么没校验」的追问里这是半边证据
+      if (sums.ok) sha256 = sha256FromSums(await sums.text(), asset.name);
+      else log.warn(`update sums fetch HTTP ${sums.status}`);
+    } catch (error) {
+      log.warn("update sums fetch failed", error);
+    }
+  }
+  if (!sha256) {
+    log.warn(`update ${tag}: no sha256 for ${asset.name} (asset digest / SHA256SUMS.txt), in-app update disabled`);
+    cached = { at: Date.now(), tag, info: null };
+    return { status: "releaseOnly", tag };
+  }
+  const info: UpdateInfo = {
+    tag,
+    size: asset.size,
+    fileName: asset.name,
+    portable: !!process.env.PORTABLE_EXECUTABLE_DIR,
+    url: asset.browser_download_url,
+    sha256,
+  };
+  cached = { at: Date.now(), tag, info };
+  currentInfo = info;
+  pruneOldInstallers(asset.name);
+  return { status: "available", info };
 }
 
 let notify: ((s: UpdateState) => void) | null = null;

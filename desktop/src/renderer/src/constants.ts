@@ -1,4 +1,5 @@
 export const REPO_URL = "https://github.com/wookat/speaktype";
+export const SITE_URL = "https://speaktype.zalize.com/";
 
 const ASR_PRESETS: Array<{ id: string; label: string; baseUrl: string; model: string }> = [
   { id: "openai", label: "OpenAI Whisper", baseUrl: "https://api.openai.com/v1", model: "whisper-1" },
