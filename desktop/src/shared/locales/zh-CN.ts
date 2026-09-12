@@ -454,6 +454,8 @@ export const zhCN = {
   "toast.micSilentBody": "这次没采到任何声音：麦克风可能休眠、静音或被其他程序占用。再按一次通常可恢复，持续如此请到 设置 → 语音识别 检查输入设备",
   "toast.holdMissed": "刚才没录上",
   "toast.holdMissedBody": "程序刚忙了一下，请再按住说一次",
+  "toast.holdTooShort": "没按住",
+  "toast.holdTooShortBody": "按住说话：按住不放开始录音；双击该键可切换免按连续听写。",
   "toast.pasteFailed": "落字失败，已复制到剪贴板",
   "toast.micUnavailable": "麦克风不可用",
   "toast.rewriteNoSelection": "没有选中文字",

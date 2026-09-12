@@ -462,6 +462,8 @@ export const en: LocaleDict = {
   "toast.micSilentBody": "No sound was captured: the mic may be asleep, muted, or held by another app. Pressing again usually wakes it; if it persists, check the input device in Settings → Speech",
   "toast.holdMissed": "That press wasn’t captured",
   "toast.holdMissedBody": "SpeakType was busy for a moment — hold the key and try again",
+  "toast.holdTooShort": "Too short a press",
+  "toast.holdTooShortBody": "Hold the key down to record; double-tap it to toggle hands-free dictation.",
   "toast.pasteFailed": "Paste failed, copied to clipboard",
   "toast.micUnavailable": "Microphone unavailable",
   "toast.rewriteNoSelection": "Nothing selected",

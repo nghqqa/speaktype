@@ -462,6 +462,8 @@ export const ko: LocaleDict = {
   "toast.micSilentBody": "소리가 전혀 녹음되지 않았어요: 마이크가 절전 중이거나 음소거이거나 다른 앱이 사용 중일 수 있어요. 한 번 더 누르면 대부분 복구되고, 계속되면 설정 → 음성 인식에서 입력 장치를 확인하세요",
   "toast.holdMissed": "이번 누름이 녹음되지 않았습니다",
   "toast.holdMissedBody": "잠시 처리가 지연되었습니다 — 키를 다시 길게 눌러 주세요",
+  "toast.holdTooShort": "누름이 너무 짧습니다",
+  "toast.holdTooShortBody": "녹음하려면 키를 계속 누르고 있으세요. 빠르게 두 번 누르면 핸즈프리 받아쓰기를 전환합니다.",
   "toast.pasteFailed": "붙여넣기 실패, 클립보드에 복사했습니다",
   "toast.micUnavailable": "마이크를 사용할 수 없습니다",
   "toast.rewriteNoSelection": "선택된 텍스트가 없습니다",
