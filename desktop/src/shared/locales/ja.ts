@@ -462,6 +462,8 @@ export const ja: LocaleDict = {
   "toast.micSilentBody": "音声が一切取れませんでした：マイクがスリープ・ミュート・他アプリによる占有の可能性があります。もう一度押せば復帰することが多く、続く場合は 設定 → 音声認識 で入力デバイスを確認してください",
   "toast.holdMissed": "今の録音は開始できませんでした",
   "toast.holdMissedBody": "一瞬処理が遅れました — もう一度キーを押し続けてください",
+  "toast.holdTooShort": "押しが短すぎます",
+  "toast.holdTooShortBody": "録音するには押し続けてください。素早く2回押すとハンズフリー音声入力を切り替えます。",
   "toast.pasteFailed": "貼り付けに失敗、クリップボードにコピーしました",
   "toast.micUnavailable": "マイクを使用できません",
   "toast.rewriteNoSelection": "テキストが選択されていません",
