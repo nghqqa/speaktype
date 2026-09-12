@@ -23,6 +23,8 @@ export interface HotkeyHandlers {
   onToggle(): void;
   /** 双击长按键（两次短敲）：进入/退出免按连续听写 */
   onDoubleTap(): void;
+  /** 单次短按被防误触吞掉（≥60ms 的故意按快，不含打字误触）：延迟到双击窗口后才回调 */
+  onShortTapHint(): void;
   onPersona(index: number): void;
   /** 按下瞬间就回调（判定时长之前），用于抢跑建联 */
   onWarmUp(): void;
@@ -85,6 +87,10 @@ export const TOGGLE_KEY_CHOICES = ["Alt+Q", "Alt+W", "Alt+Z", "Alt+X", "F9", "F1
 /** 两次短敲的最大间隔（按第一次松开到第二次松开） */
 const DOUBLE_TAP_MS = 400;
 
+// 打字误触（快速敲击相邻键时蹭到 RightCtrl）通常短于 ~50ms；60ms 以上的短按更像
+// 「故意按了但没按住」，值得给一条可教学的提示，而不是静默吞掉让用户以为应用没反应
+const SHORT_TAP_HINT_MS = 60;
+
 /** 定时器没跑成但按键时长超出判定值这么多，才算主线程卡顿饿掉了一次长按（排除卡着阈值的短敲 + 定时器抖动） */
 const STARVED_MARGIN_MS = 200;
 
@@ -112,6 +118,8 @@ export class HotkeyManager {
   private doubleTapEnabled = true;
   private lastTapAt = 0;
   private holdTimer: NodeJS.Timeout | null = null;
+  // 短按提示的延迟回调：等双击窗口过去再弹；期间若双击成立或真按住成立则取消
+  private shortTapHintTimer: NodeJS.Timeout | null = null;
   private holdActive = false;
   private holdPressed = false;
   /** 长按键按下时刻（uiohook 事件自带的系统时间戳，不受主线程卡顿影响） */
@@ -237,6 +245,11 @@ export class HotkeyManager {
     if (this.holdPressed) return; // 系统 key repeat
     this.holdPressed = true;
     this.holdDownTime = time;
+    // 新的按压开始了：上一击挂着的短按提示作废（用户显然在继续操作）
+    if (this.shortTapHintTimer) {
+      clearTimeout(this.shortTapHintTimer);
+      this.shortTapHintTimer = null;
+    }
     log.info("hotkey hold: down");
     this.handlers.onWarmUp();
     this.holdTimer = setTimeout(() => {
@@ -267,9 +280,23 @@ export class HotkeyManager {
       const now = Date.now();
       if (this.doubleTapEnabled && now - this.lastTapAt <= DOUBLE_TAP_MS) {
         this.lastTapAt = 0;
+        // 双击成立：第一击挂着的短按提示取消，别对故意双击的用户弹「按住时间太短」
+        if (this.shortTapHintTimer) {
+          clearTimeout(this.shortTapHintTimer);
+          this.shortTapHintTimer = null;
+        }
         this.handlers.onDoubleTap();
       } else {
         this.lastTapAt = now;
+        if (heldMs >= SHORT_TAP_HINT_MS) {
+          // 提示延到双击窗口之后：期间第二击到来会先取消；真按住说话的路径也会取消
+          if (this.shortTapHintTimer) clearTimeout(this.shortTapHintTimer);
+          this.shortTapHintTimer = setTimeout(() => {
+            this.shortTapHintTimer = null;
+            this.handlers.onShortTapHint();
+          }, DOUBLE_TAP_MS);
+          this.shortTapHintTimer.unref();
+        }
       }
       return;
     }

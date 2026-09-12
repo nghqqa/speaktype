@@ -256,6 +256,7 @@ const hotkeys = new HotkeyManager({
   onToggle: () => dictation.toggleHandsFree(),
   onEscape: () => dictation.cancelByKey(),
   onHoldStarved: () => showToast(t("toast.holdMissed"), t("toast.holdMissedBody")),
+  onShortTapHint: () => showToast(t("toast.holdTooShort"), t("toast.holdTooShortBody")),
   onDoubleTap: () => dictation.toggleHandsFree(),
   onPersona: (index) => {
     const personas = getPersonas();
