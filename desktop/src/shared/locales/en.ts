@@ -463,7 +463,7 @@ export const en: LocaleDict = {
   "toast.holdMissed": "That press wasn’t captured",
   "toast.holdMissedBody": "SpeakType was busy for a moment — hold the key and try again",
   "toast.holdTooShort": "Too short a press",
-  "toast.holdTooShortBody": "Hold the key down to record; double-tap it for hands-free dictation.",
+  "toast.holdTooShortBody": "Hold the key down to record; double-tap it to toggle hands-free dictation.",
   "toast.pasteFailed": "Paste failed, copied to clipboard",
   "toast.micUnavailable": "Microphone unavailable",
   "toast.rewriteNoSelection": "Nothing selected",

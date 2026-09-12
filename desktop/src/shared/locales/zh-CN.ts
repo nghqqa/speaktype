@@ -455,7 +455,7 @@ export const zhCN = {
   "toast.holdMissed": "刚才没录上",
   "toast.holdMissedBody": "程序刚忙了一下，请再按住说一次",
   "toast.holdTooShort": "没按住",
-  "toast.holdTooShortBody": "按住说话：按住不放开始录音；双击该键可进入免按连续听写。",
+  "toast.holdTooShortBody": "按住说话：按住不放开始录音；双击该键可切换免按连续听写。",
   "toast.pasteFailed": "落字失败，已复制到剪贴板",
   "toast.micUnavailable": "麦克风不可用",
   "toast.rewriteNoSelection": "没有选中文字",

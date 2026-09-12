@@ -463,7 +463,7 @@ export const ja: LocaleDict = {
   "toast.holdMissed": "今の録音は開始できませんでした",
   "toast.holdMissedBody": "一瞬処理が遅れました — もう一度キーを押し続けてください",
   "toast.holdTooShort": "押しが短すぎます",
-  "toast.holdTooShortBody": "録音するには押し続けてください。素早く2回押すとハンズフリー音声入力に入ります。",
+  "toast.holdTooShortBody": "録音するには押し続けてください。素早く2回押すとハンズフリー音声入力を切り替えます。",
   "toast.pasteFailed": "貼り付けに失敗、クリップボードにコピーしました",
   "toast.micUnavailable": "マイクを使用できません",
   "toast.rewriteNoSelection": "テキストが選択されていません",

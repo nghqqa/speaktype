@@ -438,7 +438,7 @@ export const zhTW: LocaleDict = {
   "toast.holdMissed": "剛才沒錄到",
   "toast.holdMissedBody": "程式剛忙了一下，請再按住說一次",
   "toast.holdTooShort": "沒按住",
-  "toast.holdTooShortBody": "按住說話：按住不放開始錄音；雙擊該鍵可進入免按連續聽寫。",
+  "toast.holdTooShortBody": "按住說話：按住不放開始錄音；雙擊該鍵可切換免按連續聽寫。",
   "toast.pasteFailed": "落字失敗，已複製到剪貼簿",
   "toast.micUnavailable": "麥克風不可用",
   "toast.rewriteNoSelection": "沒有選取文字",

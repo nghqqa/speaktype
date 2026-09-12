@@ -187,6 +187,11 @@ export class HotkeyManager {
   stop(): void {
     if (!this.started) return;
     this.started = false;
+    // 退出前清掉挂着的短按提示：不清理的话退出后 400ms 内仍可能闪一条 toast
+    if (this.shortTapHintTimer) {
+      clearTimeout(this.shortTapHintTimer);
+      this.shortTapHintTimer = null;
+    }
     uIOhook.stop();
     if (USE_GLOBAL_SHORTCUT) globalShortcut.unregisterAll();
   }
