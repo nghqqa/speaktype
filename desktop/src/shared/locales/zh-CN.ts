@@ -455,6 +455,8 @@ export const zhCN = {
   "toast.micSilentBody": "这次没采到任何声音：麦克风可能休眠、静音或被其他程序占用。再按一次通常可恢复，持续如此请到 设置 → 语音识别 检查输入设备",
   "toast.holdMissed": "刚才没录上",
   "toast.holdMissedBody": "程序刚忙了一下，请再按住说一次",
+  "toast.instanceConflict": "检测到另一个 SpeakType",
+  "toast.instanceConflictBody": "另一个实例正在运行（{{path}}）。全局热键会被两个实例同时响应，文字可能重复落字——建议只保留一个。",
   "toast.holdTooShort": "没按住",
   "toast.holdTooShortBody": "按住说话：按住不放开始录音；双击该键可切换免按连续听写。",
   "toast.pasteFailed": "落字失败，已复制到剪贴板",

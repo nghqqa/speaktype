@@ -27,6 +27,7 @@ import { t, translator } from "./i18n";
 import { testAsr } from "./asr";
 import { AVAILABLE_LOCAL_MODELS, cancelLocalModelDownload, deleteLocalModel, downloadLocalModel, isSherpaModel, localModelStatus, onLocalModelStatus, prewarmSherpa, releaseSherpaWorker, stopLocalServer, streamingModelReady } from "./localasr";
 import { prewarmStreamingCaptions, releaseStreamingWorker } from "./streaming-asr";
+import { describeInstancePath, startInstanceGuard } from "./instance-guard";
 import { STREAMING_CAPTIONS } from "../shared/localModels";
 import { initMuteRecovery } from "./mute";
 import { downloadPunct, onPunctStatus, punctStatus } from "./punct";
@@ -847,6 +848,14 @@ void app.whenReady().then(() => {
   if (wasHistoryRecovered()) {
     setTimeout(() => showToast(t("toast.historyRecovered"), t("toast.historyRecoveredBody")), 2600);
   }
+  // 跨配置目录的双实例防护：正式版与绿色/测试版合法并存，但全局热键会双响、文字落两遍；
+  // 后启动的实例（正是制造冲突的一方）在此报警并指明对方是谁
+  void startInstanceGuard().then((other) => {
+    if (!other) return;
+    const desc = describeInstancePath(other.userDataPath, app.getPath("home"));
+    const who = other.version ? `${desc}（v${other.version}）` : desc;
+    setTimeout(() => showToast(t("toast.instanceConflict"), t("toast.instanceConflictBody", { path: who })), 3600);
+  });
 
   mainWin.on("close", (ev) => {
     // 关主窗口 = 收进托盘继续待命，从托盘退出才真正退出
