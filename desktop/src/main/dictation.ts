@@ -20,6 +20,7 @@ import { warmChatgpt } from "./chatgpt";
 import { ensureBridge, hasAppKey, startDoubaoSession, type DoubaoSession } from "./doubao";
 import { correctHotwords } from "./hotwords";
 import { isSherpaModel, isSherpaModelLoading, localModelStatus, onSherpaModelLoaded, prewarmSherpa } from "./localasr";
+import { isStreamingCaptionsLoading, onStreamingCaptionsLoaded } from "./streaming-asr";
 import { t, translator } from "./i18n";
 import { muteForRecording, unmuteAfterRecording } from "./mute";
 import { copySelection, pasteText, sendBackspaces } from "./paste";
@@ -248,6 +249,10 @@ export class Dictation {
     onSherpaModelLoaded(() => {
       if (this.state === "transcribing") this.deps.broadcast(this.status());
     });
+    // 流式字幕模型加载完成时录音仍在进行：悬浮条从「字幕模型加载中」切回字幕
+    onStreamingCaptionsLoaded(() => {
+      if (this.state === "recording") this.deps.broadcast(this.status());
+    });
   }
 
   status(): StatusPayload {
@@ -261,6 +266,13 @@ export class Dictation {
           settings.asrProvider === "local" &&
           isSherpaModel(settings.localModel) &&
           isSherpaModelLoading()) ||
+        undefined,
+      // 录音期流式字幕模型冷加载（按键比预热早/空闲回收后首句）：加载完自动消失
+      loadingCaptions:
+        (this.state === "recording" &&
+          settings.asrProvider === "local" &&
+          settings.streamingCaptions &&
+          isStreamingCaptionsLoading()) ||
         undefined,
       personaName: localizePersona(findPersona(settings.personaId), translator()).name,
       appPersonaName: this.appPersonaId

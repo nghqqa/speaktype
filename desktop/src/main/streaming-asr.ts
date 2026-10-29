@@ -133,6 +133,20 @@ let workerReady = false;
 let nextSessionId = 1;
 let activeSession: SessionState | null = null;
 let idleTimer: NodeJS.Timeout | null = null;
+const captionsLoadedListeners = new Set<() => void>();
+
+/**
+ * 流式字幕模型是否正在加载（worker 已拉起、模型未就绪）。供听写状态机在录音期
+ * 给面板「字幕模型加载中」提示——冷启动那 1-2 秒的静默等待曾让用户以为功能失效。
+ */
+export function isStreamingCaptionsLoading(): boolean {
+  return worker !== null && !workerReady;
+}
+
+/** 流式模型加载完成回调：面板从「字幕模型加载中」切回字幕/波形 */
+export function onStreamingCaptionsLoaded(listener: () => void): void {
+  captionsLoadedListeners.add(listener);
+}
 
 interface SessionState {
   id: number;
@@ -178,6 +192,7 @@ function onWorkerMessage(msg: WorkerMessage): void {
   if (msg.type === "ready") {
     workerReady = true;
     log.info(`streaming model loaded in ${msg.ms}ms`);
+    for (const listener of captionsLoadedListeners) listener();
     return;
   }
   const s = activeSession;
@@ -289,12 +304,14 @@ function spawnWorker(): boolean {
 }
 
 /**
- * 流式侧当前是否可用（供 asr.ts 的启用判定）。worker 不存在=无已知故障，可现场拉起
- * （session 会缓存加载期间的帧）；正在加载中判不可用——预热窗口内的第一句走滑窗，
- * 不让字幕悬着等模型。
+ * 流式侧当前是否可承接会话。加载中的 worker 也可以：session 会缓存加载期的帧、
+ * 就绪后补喂，面板有「字幕模型加载中」提示兜住观感——曾在加载窗口拒绝会话导致
+ * FireRed 终稿用户整句无字幕（回退滑窗、而 FireRed 被排除在滑窗外），是间歇性
+ * 「没字幕但转录正常」的根因。崩溃态自愈（worker 已置空、下次会话现场重拉），
+ * 不存在需要拒绝的状态。
  */
 export function streamingWorkerHealthy(): boolean {
-  return worker === null || workerReady;
+  return true;
 }
 
 /** 关开关/删模型时立即释放（约 238MB 常驻，对齐 releaseSherpaWorker 语义） */
