@@ -7,8 +7,6 @@ export interface StreamingDecision {
   enabled: boolean;
   /** 流式模型文件已就绪（字节数校验通过） */
   modelReady: boolean;
-  /** 流式 worker 存活且模型加载完成（上一 session 未因崩溃降级） */
-  workerHealthy: boolean;
   /** 调用方提供了字幕回调（onPartial）：没有消费者的流式没有意义 */
   hasPartialSink: boolean;
 }
@@ -18,7 +16,7 @@ export interface StreamingDecision {
  * 这正是字幕层独立于终稿层的价值。开关/模型/worker 任一不满足即回退现有滑窗路径。
  */
 export function shouldUseStreamingCaptions(d: StreamingDecision): boolean {
-  return d.enabled && d.modelReady && d.workerHealthy && d.hasPartialSink;
+  return d.enabled && d.modelReady && d.hasPartialSink;
 }
 
 export type FinalOutcome =

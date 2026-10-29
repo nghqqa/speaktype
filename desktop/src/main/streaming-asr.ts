@@ -304,15 +304,12 @@ function spawnWorker(): boolean {
 }
 
 /**
- * 流式侧当前是否可承接会话。加载中的 worker 也可以：session 会缓存加载期的帧、
- * 就绪后补喂，面板有「字幕模型加载中」提示兜住观感——曾在加载窗口拒绝会话导致
- * FireRed 终稿用户整句无字幕（回退滑窗、而 FireRed 被排除在滑窗外），是间歇性
- * 「没字幕但转录正常」的根因。崩溃态自愈（worker 已置空、下次会话现场重拉），
- * 不存在需要拒绝的状态。
+ * 「worker 健康度」曾作为启用判定的输入：加载窗口内返回 false 拒绝会话，导致
+ * FireRed 终稿用户整句无字幕（回退滑窗、而 FireRed 被排除在滑窗外）——间歇性
+ * 「没字幕但转录正常」的根因。已随根因修复移除：加载中的 worker 可承接会话
+ * （session 缓存帧、就绪补喂），崩溃态自愈（worker 置空、下次会话现场重拉），
+ * 不存在需要拒绝的状态。此注释留档防回归。
  */
-export function streamingWorkerHealthy(): boolean {
-  return true;
-}
 
 /** 关开关/删模型时立即释放（约 238MB 常驻，对齐 releaseSherpaWorker 语义） */
 export function releaseStreamingWorker(): void {
