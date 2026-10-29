@@ -403,6 +403,7 @@ export const zhCN = {
   "panel.recording": "开始说话",
   "panel.transcribing": "转写中…",
   "panel.loadingModel": "加载模型中…",
+  "panel.loadingCaptions": "字幕模型加载中…",
   "panel.polishing": "润色中…",
   "panel.rewriteBadge": "改写",
   "panel.micSilent": "未检测到麦克风输入——设备可能在休眠，再按一次试试",

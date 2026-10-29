@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { LOCAL_MODEL_IDS, LOCAL_MODELS, STREAMING_CAPTIONS } from "../shared/localModels";
 import { resolveCaptionFallback, shouldUseStreamingCaptions } from "./streaming-policy";
 
-const ON = { enabled: true, modelReady: true, workerHealthy: true, hasPartialSink: true };
+const ON = { enabled: true, modelReady: true, hasPartialSink: true };
 
 describe("shouldUseStreamingCaptions", () => {
   it("全满足才启用", () => {
@@ -13,9 +13,6 @@ describe("shouldUseStreamingCaptions", () => {
   });
   it("模型未就绪降级", () => {
     expect(shouldUseStreamingCaptions({ ...ON, modelReady: false })).toBe(false);
-  });
-  it("worker 不健康降级", () => {
-    expect(shouldUseStreamingCaptions({ ...ON, workerHealthy: false })).toBe(false);
   });
   it("无字幕消费者（onPartial 缺席）不用", () => {
     expect(shouldUseStreamingCaptions({ ...ON, hasPartialSink: false })).toBe(false);

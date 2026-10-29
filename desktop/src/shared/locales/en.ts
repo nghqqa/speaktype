@@ -411,6 +411,7 @@ export const en: LocaleDict = {
   "panel.recording": "Listening",
   "panel.transcribing": "Transcribing…",
   "panel.loadingModel": "Loading model…",
+  "panel.loadingCaptions": "Loading caption model…",
   "panel.polishing": "Polishing…",
   "panel.rewriteBadge": "Rewrite",
   "panel.micSilent": "No microphone input detected — the device may be sleeping; press again",

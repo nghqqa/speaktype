@@ -263,5 +263,7 @@ export interface StatusPayload {
   rewrite?: boolean;
   /** 转写中但本地模型仍在冷加载：悬浮条显示「加载模型」而非「转写中」 */
   loadingModel?: boolean;
+  /** 录音期流式字幕模型正在冷加载：面板显示「字幕模型加载中」，加载完自动切回字幕 */
+  loadingCaptions?: boolean;
   hotkeyHold: string;
 }
