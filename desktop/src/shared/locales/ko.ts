@@ -411,6 +411,7 @@ export const ko: LocaleDict = {
   "panel.recording": "듣고 있습니다",
   "panel.transcribing": "전사 중…",
   "panel.loadingModel": "모델 로딩 중…",
+  "panel.loadingCaptions": "자막 모델 로드 중…",
   "panel.polishing": "다듬는 중…",
   "panel.rewriteBadge": "다시 쓰기",
   "panel.micSilent": "마이크 입력이 감지되지 않아요——장치가 절전 모드일 수 있어요. 한 번 더 눌러 보세요",

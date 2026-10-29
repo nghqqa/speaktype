@@ -133,6 +133,12 @@ function Panel() {
             ))}
           </div>
         )}
+        {recording && status?.loadingCaptions && (
+          <span className="flex items-center gap-1.5 text-[12px] text-slate-400">
+            <Loader2 size={13} className="animate-spin text-violet-400" />
+            {t("panel.loadingCaptions")}
+          </span>
+        )}
         {working && (
           <span className="flex items-center gap-2 text-[13px] text-slate-300">
             <Loader2 size={16} className="animate-spin text-violet-400" />

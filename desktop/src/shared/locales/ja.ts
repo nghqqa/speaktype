@@ -411,6 +411,7 @@ export const ja: LocaleDict = {
   "panel.recording": "聞いています",
   "panel.transcribing": "文字起こし中…",
   "panel.loadingModel": "モデルを読み込み中…",
+  "panel.loadingCaptions": "字幕モデル読み込み中…",
   "panel.polishing": "調整中…",
   "panel.rewriteBadge": "書き換え",
   "panel.micSilent": "マイクの入力を検出できません——デバイスがスリープ中の可能性があります。もう一度押してみてください",

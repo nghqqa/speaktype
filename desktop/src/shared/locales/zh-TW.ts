@@ -387,6 +387,7 @@ export const zhTW: LocaleDict = {
   "panel.recording": "開始說話",
   "panel.transcribing": "轉寫中…",
   "panel.loadingModel": "載入模型中…",
+  "panel.loadingCaptions": "字幕模型載入中…",
   "panel.polishing": "潤色中…",
   "panel.rewriteBadge": "改寫",
   "panel.micSilent": "未偵測到麥克風輸入——裝置可能在休眠，再按一次試試",

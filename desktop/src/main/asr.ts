@@ -5,7 +5,7 @@ import type { DoubaoSession } from "./doubao";
 import { t } from "./i18n";
 import { transcribeViaChatgpt } from "./chatgpt";
 import { ensureLocalServer, isFireRedModel, isSherpaModel, streamingModelReady, transcribeSherpa, whisperLanguage } from "./localasr";
-import { startStreamingCaptions, streamingWorkerHealthy } from "./streaming-asr";
+import { startStreamingCaptions } from "./streaming-asr";
 import { resolveCaptionFallback, shouldUseStreamingCaptions, type FinalOutcome } from "./streaming-policy";
 
 const SAMPLE_RATE = 16000;
@@ -218,7 +218,6 @@ export function startLocalAsrSession(
   const streaming = shouldUseStreamingCaptions({
     enabled: settings.streamingCaptions === true,
     modelReady: streamingModelReady(),
-    workerHealthy: streamingWorkerHealthy(),
     hasPartialSink: !!onPartial,
   })
     ? startStreamingCaptions(onPartial!)

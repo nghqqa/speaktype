@@ -833,10 +833,12 @@ void app.whenReady().then(() => {
   }
   // 流式草稿与终稿模型类型无关（whisper 终稿 + 流式草稿合法）：只按 provider 门控，
   // 不嵌在 sherpa 条件里，否则 whisper 终稿用户的第一句字幕要等按需拉起
+  // 字幕是录音中的第一责任方，预热排在离线模型（+3s）之前：启动后越早拉起，
+  // 用户开口越不可能撞上「字幕模型加载中」
   if (settings.asrProvider === "local" && settings.streamingCaptions) {
     setTimeout(() => {
       if (getSettings().asrProvider === "local" && getSettings().streamingCaptions) prewarmStreamingCaptions();
-    }, 5000);
+    }, 1000);
   }
   // 设置写盘被拒（文件只读/权限不足）时给可见提示，否则重启后改动静默丢失
   onPersistError(() => showToast(t("toast.saveFailed"), t("toast.saveFailedBody")));
